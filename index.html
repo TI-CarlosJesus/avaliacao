@@ -88,9 +88,15 @@
                 <div class="col-md-4">
                     <div class="card shadow-sm mb-3">
                         <div class="card-body">
-                            <h5 class="card-title text-muted small fw-bold"><i class="fa-solid fa-file-import me-2"></i>1. CARREGAR GRUPOS</h5>
+                            <h5 class="card-title text-muted small fw-bold"><i class="fa-solid fa-file-import me-2"></i>1. CARREGAR PLANILHAS</h5>
+                            
+                            <label class="form-label small text-muted fw-bold mb-1">Planilha de Grupos:</label>
                             <input type="file" id="upload-excel" class="form-control form-control-sm mb-2" accept=".xlsx, .xls">
-                            <label class="form-label small text-muted mb-0">Tempo da Apresentação (min):</label>
+                            
+                            <label class="form-label small text-muted fw-bold mb-1">Novos Critérios (Opcional):</label>
+                            <input type="file" id="upload-criterios" class="form-control form-control-sm mb-3" accept=".xlsx, .xls">
+                            
+                            <label class="form-label small text-muted fw-bold mb-0">Tempo da Apresentação (min):</label>
                             <input type="number" id="tempo-definido" class="form-control form-control-sm text-center fw-bold text-primary" value="15" min="1">
                         </div>
                     </div>
@@ -118,7 +124,8 @@
                                     <div class="row align-items-center">
                                         <div class="col-sm-7">
                                             <h4 id="ativo-nome" class="text-primary mb-1">Grupo 01</h4>
-                                            <p id="ativo-tema" class="text-muted mb-2">Tema do Trabalho</p>
+                                            <p id="ativo-tema" class="text-muted mb-1">Tema do Trabalho</p>
+                                            <p id="ativo-integrantes" class="text-secondary small mb-2"><strong>Integrantes:</strong> Carregando...</p>
                                             <div class="cronometro mb-2" id="cronometro">15:00</div>
                                             
                                             <div class="btn-group btn-group-sm me-2 mb-2">
@@ -227,9 +234,14 @@
                             </div>
 
                             <form id="form-avaliacao" onsubmit="gerarTokenAluno(event)">
-                                <div class="mb-3">
-                                    <label class="form-label fw-bold">Grupo em Apresentação</label>
-                                    <input type="text" id="aluno-grupo-nome" class="form-control bg-light fw-bold text-secondary" readonly value="Nenhum grupo ativo">
+                                <div class="mb-3 p-3 bg-light rounded border border-secondary shadow-sm">
+                                    <label class="form-label fw-bold mb-1 text-primary"><i class="fa-solid fa-users me-1"></i> Grupo Sendo Avaliado</label>
+                                    <input type="text" id="aluno-grupo-nome" class="form-control bg-white fw-bold text-secondary mb-2" readonly value="Nenhum grupo ativo">
+                                    
+                                    <!-- Exibição dos Alunos Integrantes na tela de avaliação -->
+                                    <label class="form-label small fw-bold text-muted mb-0"><i class="fa-solid fa-id-card me-1"></i> Apresentadores:</label>
+                                    <div id="aluno-grupo-integrantes" class="small text-dark p-2 bg-white rounded border" style="min-height:30px;">-</div>
+                                    
                                     <input type="hidden" id="aluno-grupo-id">
                                 </div>
 
@@ -273,7 +285,7 @@
     </div>
 
     <!-- CDNs Requeridas -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -288,16 +300,16 @@
         let isPausado = false;
         let chartInstance = null;
 
-        const criteriosConfig = [
-            { id: 'dominio', label: 'Domínio do Assunto', desc: 'Demonstrou segurança e respondeu perguntas com precisão.' },
-            { id: 'clareza', label: 'Clareza', desc: 'Apresentação linear, compreensível e articulada.' },
-            { id: 'organizacao', label: 'Organização', desc: 'Divisão clara de falas e postura integrada do grupo.' },
-            { id: 'slides', label: 'Qualidade dos Slides', desc: 'Suporte visual limpo, legível e bem estruturado.' },
-            { id: 'tempo', label: 'Controle de Tempo', desc: 'Conclusão adequada dentro da janela estipulada.' }
+        // Critérios Padrão (Fallback caso o professor não importe uma lista própria)
+        let criteriosConfig = [
+            { id: 'c_1', label: 'Domínio do Assunto', desc: 'Demonstrou segurança e respondeu perguntas com precisão.' },
+            { id: 'c_2', label: 'Clareza', desc: 'Apresentação linear, compreensível e articulada.' },
+            { id: 'c_3', label: 'Organização', desc: 'Divisão clara de falas e postura integrada do grupo.' },
+            { id: 'c_4', label: 'Qualidade dos Slides', desc: 'Suporte visual limpo, legível e bem estruturado.' },
+            { id: 'c_5', label: 'Controle de Tempo', desc: 'Conclusão adequada dentro da janela estipulada.' }
         ];
 
         document.addEventListener('DOMContentLoaded', () => {
-            renderCriteriosForm();
             renderListaGrupos();
             verificarModoAcesso();
         });
@@ -309,6 +321,15 @@
                 switchView('aluno');
                 document.getElementById('aluno-grupo-id').value = params.get('gId');
                 document.getElementById('aluno-grupo-nome').value = `${params.get('gNome')} [${params.get('gTema')}]`;
+                document.getElementById('aluno-grupo-integrantes').innerText = params.get('gMembros') ? decodeURIComponent(params.get('gMembros')) : "Carregados via sistema";
+                
+                // Se houver critérios customizados injetados dinamicamente via link
+                if(params.has('cCrit')) {
+                    try {
+                        criteriosConfig = JSON.parse(decodeURIComponent(params.get('cCrit')));
+                    } catch(e) { console.error("Erro ao ler critérios da URL", e); }
+                }
+                renderCriteriosForm();
             } else {
                 switchView('professor');
                 renderDashboard();
@@ -320,21 +341,15 @@
             document.getElementById(`view-${view}`).classList.remove('d-none');
         }
 
-        // --- Professor: Mecanismos ---
+        // --- Importador 1: Grupos ---
         document.getElementById('upload-excel').addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
-
             const reader = new FileReader();
             reader.onload = (evt) => {
                 const data = new Uint8Array(evt.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
-                
-                if (!workbook.SheetNames.includes('Grupos')) {
-                    alert('Erro: Planilha precisa conter a aba chamada "Grupos".');
-                    return;
-                }
-
+                if (!workbook.SheetNames.includes('Grupos')) { alert('Erro: Planilha precisa conter a aba chamada "Grupos".'); return; }
                 const worksheet = workbook.Sheets['Grupos'];
                 const json = XLSX.utils.sheet_to_json(worksheet);
 
@@ -344,10 +359,35 @@
                     tema: item.Tema || 'Tema não informado',
                     integrantes: item.Integrantes || 'Não informados'
                 }));
-
                 localStorage.setItem('acad_grupos', JSON.stringify(dbGrupos));
                 renderListaGrupos();
-                alert(`${dbGrupos.length} grupos carregados com sucesso!`);
+                alert(`${dbGrupos.length} grupos carregados!`);
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        // --- Importador 2: Critérios de Avaliação Customizados (Opcional) ---
+        document.getElementById('upload-criterios').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (evt) => {
+                const data = new Uint8Array(evt.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const primeiraAba = workbook.SheetNames[0];
+                const json = XLSX.utils.sheet_to_json(workbook.Sheets[primeiraAba]);
+
+                if(json.length > 0 && json[0].Criterio) {
+                    criteriosConfig = json.map((item, idx) => ({
+                        id: `c_${idx + 1}`,
+                        label: item.Criterio,
+                        desc: item.Descricao || 'Avalie o desempenho do grupo de 1 a 5 estrelas.'
+                    }));
+                    alert(`Sucesso! ${criteriosConfig.length} critérios customizados foram definidos para esta aula.`);
+                    if(grupoAtivo) atualizarPainelAtivo(); // Atualiza o QR code para injetar novos critérios
+                } else {
+                    alert('Erro: A planilha de critérios precisa conter pelo menos a coluna "Criterio".');
+                }
             };
             reader.readAsArrayBuffer(file);
         });
@@ -358,7 +398,6 @@
                 container.innerHTML = '<div class="col-12 text-center text-muted py-4">Aguardando importação da planilha de grupos...</div>';
                 return;
             }
-
             container.innerHTML = dbGrupos.map(g => {
                 const isAtivo = grupoAtivo && grupoAtivo.id === g.id;
                 return `
@@ -386,12 +425,10 @@
         function iniciarApresentacao(id) {
             const g = dbGrupos.find(x => x.id === id);
             if (!g) return;
-
             grupoAtivo = g;
             const minutosDefinidos = parseInt(document.getElementById('tempo-definido').value) || 15;
             tempoRestante = minutosDefinidos * 60;
             isPausado = false;
-
             renderListaGrupos();
             atualizarPainelAtivo();
             dispararTimer();
@@ -404,12 +441,15 @@
 
             document.getElementById('ativo-nome').innerText = grupoAtivo.nome;
             document.getElementById('ativo-tema').innerText = grupoAtivo.tema;
+            document.getElementById('ativo-integrantes').innerHTML = `<strong>Integrantes:</strong> ${grupoAtivo.integrantes}`;
 
             const qrContainer = document.getElementById('qrcode');
             qrContainer.innerHTML = "";
             
             const urlBase = window.location.href.split('?')[0];
-            const urlFinal = `${urlBase}?gId=${grupoAtivo.id}&gNome=${encodeURIComponent(grupoAtivo.nome)}&gTema=${encodeURIComponent(grupoAtivo.tema)}`;
+            
+            // Injeta na URL dinamicamente o ID, Nome, Tema, Integrantes e os Critérios Ativos (Compactados)
+            const urlFinal = `${urlBase}?gId=${grupoAtivo.id}&gNome=${encodeURIComponent(grupoAtivo.nome)}&gTema=${encodeURIComponent(grupoAtivo.tema)}&gMembros=${encodeURIComponent(grupoAtivo.integrantes)}&cCrit=${encodeURIComponent(JSON.stringify(criteriosConfig))}`;
             
             new QRCode(qrContainer, {
                 text: urlFinal,
@@ -421,6 +461,7 @@
             qrContainer.setAttribute('data-link', urlFinal);
         }
 
+        // --- Cronômetro ---
         function dispararTimer() {
             clearInterval(timerInterval);
             exibirMascaraTempo();
@@ -428,74 +469,52 @@
                 if (!isPausado) {
                     tempoRestante--;
                     exibirMascaraTempo();
-                    if (tempoRestante <= 0) {
-                        clearInterval(timerInterval);
-                        document.getElementById('cronometro').textContent = "TEMPO ESGOTADO";
-                    }
+                    if (tempoRestante <= 0) { clearInterval(timerInterval); document.getElementById('cronometro').textContent = "TEMPO ESGOTADO"; }
                 }
             }, 1000);
         }
-
         function exibirMascaraTempo() {
             let mins = parseInt(tempoRestante / 60, 10);
             let segs = parseInt(tempoRestante % 60, 10);
             document.getElementById('cronometro').textContent = `${mins < 10 ? "0" + mins : mins}:${segs < 10 ? "0" + segs : segs}`;
         }
-
         function pausarTimer() { isPausado = true; document.getElementById('btn-pausar').classList.add('d-none'); document.getElementById('btn-retomar').classList.remove('d-none'); }
         function retomarTimer() { isPausado = false; document.getElementById('btn-retomar').classList.add('d-none'); document.getElementById('btn-pausar').classList.remove('d-none'); }
+        function finalizarApresentacao() { clearInterval(timerInterval); grupoAtivo = null; document.getElementById('sessao-ativa').classList.add('d-none'); document.getElementById('sessao-vazia').classList.remove('d-none'); renderListaGrupos(); }
 
-        function finalizarApresentacao() {
-            clearInterval(timerInterval);
-            grupoAtivo = null;
-            document.getElementById('sessao-ativa').classList.add('d-none');
-            document.getElementById('sessao-vazia').classList.remove('d-none');
-            renderListaGrupos();
-        }
-
-        // --- Injeção de Tokens ---
+        // --- Processamento dos Tokens de Votos ---
         function processarTokensProfessor() {
             const rawText = document.getElementById('votos-brutos').value.trim();
             if(!rawText) { alert("Cole os tokens enviados pelos alunos primeiro."); return; }
-
             const linhas = rawText.split('\n');
-            let inseridos = 0;
-            let duplicados = 0;
+            let inseridos = 0, duplicados = 0;
 
             linhas.forEach(linha => {
                 if(!linha.startsWith("ACAD-VOTE|")) return;
                 try {
-                    const partes = line = linha.split('|');
+                    const partes = linha.split('|');
                     const jsonString = atob(partes[1]); 
                     const obj = JSON.parse(jsonString);
-
                     const jaExiste = dbAvaliacoes.some(x => x.ra === obj.ra && x.grupoId === obj.grupoId);
-                    if(!jaExiste) {
-                        dbAvaliacoes.push(obj);
-                        inseridos++;
-                    } else {
-                        duplicados++;
-                    }
-                } catch(e) {
-                    console.error("Erro ao processar linha de voto:", e);
-                }
+                    if(!jaExiste) { dbAvaliacoes.push(obj); inseridos++; } else { duplicados++; }
+                } catch(e) { console.error("Erro ao processar linha:", e); }
             });
-
             document.getElementById('votos-brutos').value = "";
             renderDashboard();
             alert(`Processamento Concluído!\n${inseridos} novos votos validados.\n${duplicados} votos duplicados descartados.`);
         }
 
-        // --- Aluno: Geração do Token ---
+        // --- Aluno: Geração do Formulário Dinâmico ---
         function renderCriteriosForm() {
             document.getElementById('container-criterios').innerHTML = criteriosConfig.map(c => `
                 <div class="mb-3 p-2 bg-light rounded border-start border-3 border-primary shadow-sm">
                     <div class="d-flex justify-content-between align-items-center flex-wrap">
-                        <div>
-                            <label class="form-label mb-0 fw-bold small">${c.label}</label>
+                        <div style="max-width: 65%;">
+                            <label class="form-label mb-0 fw-bold small text-dark">${c.label}</label>
+                            <span class="text-muted d-block" style="font-size:0.75rem; line-height: 1.1;">${c.desc}</span>
                         </div>
                         <div class="star-rating">
-                            <input type="radio" id="star-${c.id}-5" name="crit-${c.id}" value="5" required/><label for="star-${c.id}-5" class="fa-solid fa-star"></label>
+                            <input type="radio" id="star-${c.id}-5" name="crit-${c.id}" value="5" required/><label false for="star-${c.id}-5" class="fa-solid fa-star"></label>
                             <input type="radio" id="star-${c.id}-4" name="crit-${c.id}" value="4" /><label for="star-${c.id}-4" class="fa-solid fa-star"></label>
                             <input type="radio" id="star-${c.id}-3" name="crit-${c.id}" value="3" /><label for="star-${c.id}-3" class="fa-solid fa-star"></label>
                             <input type="radio" id="star-${c.id}-2" name="crit-${c.id}" value="2" /><label for="star-${c.id}-2" class="fa-solid fa-star"></label>
@@ -514,6 +533,13 @@
             const ra = document.getElementById('aluno-ra').value.trim();
             const nome = document.getElementById('aluno-nome').value.trim();
 
+            // Mapeia de forma dinâmica as notas de cada critério ativo
+            const notasCapturadas = {};
+            criteriosConfig.forEach(c => {
+                const elemento = document.querySelector(`input[name="crit-${c.id}"]:checked`);
+                notasCapturadas[c.label] = elemento ? parseInt(elemento.value) : 5;
+            });
+
             const avaliacaoEstrutura = {
                 ra: ra,
                 aluno: nome,
@@ -521,18 +547,12 @@
                 grupoId: gId,
                 grupo: fullGrupoTexto.split(' [')[0],
                 tema: fullGrupoTexto.includes('[') ? fullGrupoTexto.split('[')[1].replace(']', '') : 'Não informado',
-                dominio: parseInt(document.querySelector(`input[name="crit-dominio"]:checked`).value),
-                clareza: parseInt(document.querySelector(`input[name="crit-clareza"]:checked`).value),
-                organizacao: parseInt(document.querySelector(`input[name="crit-organizacao"]:checked`).value),
-                slides: parseInt(document.querySelector(`input[name="crit-slides"]:checked`).value),
-                tempo: parseInt(document.querySelector(`input[name="crit-tempo"]:checked`).value),
-                postura: 5,
+                notas: notasCapturadas,
                 pontosFortes: document.getElementById('p-fortes').value.trim(),
                 pontosMelhorias: document.getElementById('p-melhorias').value.trim()
             };
 
             const tokenInjetavel = "ACAD-VOTE|" + btoa(unescape(encodeURIComponent(JSON.stringify(avaliacaoEstrutura))));
-            
             document.getElementById('token-gerado').value = tokenInjetavel;
             document.getElementById('form-avaliacao').classList.add('d-none');
             document.getElementById('aluno-sucesso').classList.remove('d-none');
@@ -542,7 +562,7 @@
             const areaText = document.getElementById('token-gerado');
             areaText.select();
             navigator.clipboard.writeText(areaText.value);
-            alert("Token Copiado! Agora cole no chat indicado pelo professor.");
+            alert("Token Copiado! Cole no chat da aula.");
         }
 
         function resgatarFormulario() {
@@ -551,7 +571,7 @@
             document.getElementById('aluno-sucesso').classList.add('d-none');
         }
 
-        // --- Dashboard ---
+        // --- Dashboard Dinâmico ---
         function renderDashboard() {
             const total = dbAvaliacoes.length;
             document.getElementById('dash-total-aval').innerText = total;
@@ -563,111 +583,108 @@
                 if(chartInstance) chartInstance.destroy();
                 return;
             }
+
+            // Descobre todos os critérios dinâmicos que foram respondidos nos tokens
+            const chavesCriterios = Object.keys(dbAvaliacoes[0].notas);
+            const somas = {}; chavesCriterios.forEach(k => somas[k] = 0);
             
-            let sDom = 0, sCla = 0, sOrg = 0, sSli = 0, sTem = 0;
+            let somaGeralDasMedias = 0;
             dbAvaliacoes.forEach(a => {
-                sDom += a.dominio; sCla += a.clareza; sOrg += a.organizacao; sSli += a.slides; sTem += a.tempo;
+                chavesCriterios.forEach(k => { somas[k] += (a.notas[k] || 0); });
             });
 
-            const medDom = (sDom / total).toFixed(1);
-            const medCla = (sCla / total).toFixed(1);
-            const medOrg = (sOrg / total).toFixed(1);
-            const medSli = (sSli / total).toFixed(1);
-            const medTem = (sTem / total).toFixed(1);
+            const dadosGrafico = [];
+            chavesCriterios.forEach(k => {
+                const mediaCrit = (somas[k] / total);
+                dadosGrafico.push(mediaCrit.toFixed(1));
+                somaGeralDasMedias += mediaCrit;
+            });
 
-            document.getElementById('dash-media-geral').innerText = ((parseFloat(medDom)+parseFloat(medCla)+parseFloat(medOrg)+parseFloat(medSli)+parseFloat(medTem))/5).toFixed(1);
+            document.getElementById('dash-media-geral').innerText = (somaGeralDasMedias / chavesCriterios.length).toFixed(1);
 
+            // Grupo Top
             const ranking = {};
             dbAvaliacoes.forEach(a => {
-                if(!ranking[a.grupo]) ranking[a.grupo] = { pt: 0, c: 0 };
-                ranking[a.grupo].pt += (a.dominio + a.clareza + a.organizacao + a.slides + a.tempo)/5;
+                if(!ranking[a.grupo]) ranking[a.grupo] = { soma: 0, c: 0 };
+                let sub = 0; chavesCriterios.forEach(k => sub += a.notas[k]);
+                ranking[a.grupo].soma += (sub / chavesCriterios.length);
                 ranking[a.grupo].c++;
             });
             let topG = "-"; let maxM = 0;
             for (let name in ranking) {
-                let m = ranking[name].pt / ranking[name].c;
+                let m = ranking[name].soma / ranking[name].c;
                 if(m > maxM) { maxM = m; topG = name; }
             }
             document.getElementById('dash-grupo-top').innerText = topG;
 
+            // Chart.js adaptável aos critérios importados
             const ctx = document.getElementById('chartCriterios').getContext('2d');
             if (chartInstance) chartInstance.destroy();
             chartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: ['Domínio', 'Clareza', 'Organização', 'Slides', 'Tempo'],
-                    datasets: [{
-                        label: 'Médias Coletadas',
-                        data: [medDom, medCla, medOrg, medSli, medTem],
-                        backgroundColor: '#18bc9c'
-                    }]
+                    labels: chavesCriterios,
+                    datasets: [{ label: 'Média Atual', data: dadosGrafico, backgroundColor: '#18bc9c' }]
                 },
                 options: { scales: { y: { min: 0, max: 5 } }, responsive: true, maintainAspectRatio: false }
             });
 
             const feed = document.getElementById('dash-comentarios');
-            const filtrados = dbAvaliacoes.filter(x => x.pontosFortes || x.pontosMelhorias);
-            if(filtrados.length === 0){
-                feed.innerHTML = '<p class="text-muted small">Nenhum feedback descritivo inserido.</p>';
-            } else {
-                feed.innerHTML = filtrados.reverse().map(x => `
-                    <div class="p-2 border-bottom small card mb-1 bg-white">
-                        <strong class="text-primary">${x.grupo}</strong>
-                        <div class="text-success text-xs"><strong>+</strong> ${x.pontosFortes || '-'}</div>
-                        <div class="text-danger text-xs"><strong>-</strong> ${x.pontosMelhorias || '-'}</div>
-                    </div>
-                `).join('');
-            }
+            feed.innerHTML = dbAvaliacoes.slice().reverse().map(x => `
+                <div class="p-2 border-bottom small card mb-1 bg-white">
+                    <strong class="text-primary">${x.grupo}</strong>
+                    <div class="text-success text-xs"><strong>+</strong> ${x.pontosFortes || '-'}</div>
+                    <div class="text-danger text-xs"><strong>-</strong> ${x.pontosMelhorias || '-'}</div>
+                </div>
+            `).join('');
         }
 
-        // --- Exportador Excel definitivo com E-mail integrado ---
+        // --- Exportador Excel Inteligente e Dinâmico ---
         function exportarResultadosXLSX() {
-            if (dbAvaliacoes.length === 0) {
-                alert("Sem registros disponíveis para gerar relatório.");
-                return;
-            }
-
+            if (dbAvaliacoes.length === 0) { alert("Sem registros disponíveis."); return; }
             const wb = XLSX.utils.book_new();
+            const chavesCriterios = Object.keys(dbAvaliacoes[0].notas);
 
-            // Adicionado coluna de "E-mail" mapeada diretamente da estrutura coletada do aluno
-            const abaAvaliacoes = dbAvaliacoes.map(x => ({
-                "RA": x.ra,
-                "Aluno": x.aluno,
-                "E-mail": x.email,
-                "Grupo": x.grupo,
-                "Tema": x.tema,
-                "Domínio do assunto": x.dominio,
-                "Clareza": x.clareza,
-                "Organização": x.organizacao,
-                "Qualidade dos slides": x.slides,
-                "Controle do tempo": x.tempo,
-                "Postura": x.postura,
-                "Pontos Fortes": x.pontosFortes,
-                "Pontos de Melhorias": x.pontosMelhorias
-            }));
-            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(abaAvaliacoes), "Avaliações");
+            // Aba 1: Lista Plana Adaptável
+            const dadosAba1 = dbAvaliacoes.map(x => {
+                const linha = {
+                    "RA": x.ra,
+                    "Aluno": x.aluno,
+                    "E-mail": x.email,
+                    "Grupo": x.grupo,
+                    "Tema": x.tema
+                };
+                // Adiciona os critérios reais como colunas individuais no Excel automaticamente
+                chavesCriterios.forEach(k => { linha[k] = x.notas[k]; });
+                linha["Pontos Fortes"] = x.pontosFortes;
+                linha["Pontos de Melhorias"] = x.pontosMelhorias;
+                return linha;
+            });
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dadosAba1), "Avaliações");
 
-            const resumoCalculado = [];
+            // Aba 2: Resumo Consolidado Adaptável
+            const dadosAba2 = [];
             const listaGruposInstanciados = [...new Set(dbAvaliacoes.map(x => x.grupo))];
             
             listaGruposInstanciados.forEach(nomeG => {
                 const amostras = dbAvaliacoes.filter(x => x.grupo === nomeG);
                 const n = amostras.length;
-                let d=0, c=0, o=0, s=0, t=0;
-                amostras.forEach(a => { d+=a.dominio; c+=a.clareza; o+=a.organizacao; s+=a.slides; t+=a.tempo; });
                 
-                resumoCalculado.push({
-                    "Grupo": nomeG,
-                    "Total de Avaliadores": n,
-                    "Média Domínio": (d/n).toFixed(2),
-                    "Média Clareza": (c/n).toFixed(2),
-                    "Média Organização": (o/n).toFixed(2),
-                    "Média Slides": (s/n).toFixed(2),
-                    "Média Tempo": (t/n).toFixed(2),
-                    "Média Final": ((d+c+o+s+t)/(n*5)).toFixed(2)
+                const linhaResumo = { "Grupo": nomeG, "Total de Avaliadores": n };
+                let somaDasMedias = 0;
+
+                chavesCriterios.forEach(k => {
+                    let somatorioC = 0;
+                    amostras.forEach(a => somatorioC += a.notas[k]);
+                    let m = somatorioC / n;
+                    linhaResumo[`Média ${k}`] = m.toFixed(2);
+                    somaDasMedias += m;
                 });
+
+                linhaResumo["Média Geral do Grupo"] = (somaDasMedias / chavesCriterios.length).toFixed(2);
+                dadosAba2.push(linhaResumo);
             });
-            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(resumoCalculado), "Resumo");
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dadosAba2), "Resumo");
 
             XLSX.writeFile(wb, `Avaliacao_Turma_Consolidado.xlsx`);
         }
