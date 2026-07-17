@@ -63,12 +63,11 @@
         #qrcode img {
             margin: 0 auto;
         }
-        /* Design da Numeração do Aluno */
         .crit-num {
             font-size: 1.1rem;
             font-weight: 800;
             color: var(--primary-color);
-            min-width: 30px;
+            min-width: 25px;
             display: inline-block;
         }
     </style>
@@ -200,7 +199,6 @@
                 <div class="row g-4">
                     <div class="col-md-6">
                         <div class="card shadow-sm p-3 h-100">
-                            <!-- Filtro de Trabalhos no Gráfico (Ajuste Imagem 1) -->
                             <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                                 <h5 class="mb-0">Média de Pontos por Critério</h5>
                                 <div class="d-flex align-items-center">
@@ -244,8 +242,8 @@
                             <div id="aluno-sucesso" class="d-none text-center py-4">
                                 <i class="fa-solid fa-circle-check text-success fa-3x mb-3"></i>
                                 <h4 class="text-success">Avaliação Gerada!</h4>
-                                <p class="small text-muted">Para computar seu voto na planilha do professor, clique no botão abaixo para copiar o seu token de validação e cole no chat da aula ou grupo indicado.</p>
-                                <textarea id="token-gerado" class="form-control text-center font-monospace small mb-3 bg-light" readonly rows="3" style="font-size: 0.8rem;"></textarea>
+                                <p class="small text-muted">Para computar seu voto na planilha do professor, clique no botão abaixo para copiar o seu token e cole no chat da aula ou grupo indicado.</p>
+                                <textarea id="token-gerado" class="form-control text-center font-monospace small mb-3 bg-light" readonly rows="3" style="font-size: 0.8rem; height: 90px;"></textarea>
                                 <button class="btn btn-success w-100 fw-bold py-2" onclick="copiarTokenAluno()">
                                     <i class="fa-solid fa-copy me-2"></i>COPIAR TOKEN DE AVALIAÇÃO
                                 </button>
@@ -326,7 +324,7 @@
             { id: 'c_7', dim: 'Conteúdo', label: 'Argumentação', desc: 'Defendeu pontos com raciocínio lógico estruturado.', peso: 10 },
             { id: 'c_8', dim: 'Conteúdo', label: 'Uso de Evidências', desc: 'Fundamentação teórica, dados técnicos ou referências válidas.', peso: 10 },
             { id: 'c_9', dim: 'Conteúdo', label: 'Conhecimento Prático', desc: 'Relacionou a teoria com aplicações práticas ou estudos de caso.', peso: 8 },
-            { id: 'c_10', dim: 'Conteúdo', label: 'Criatividade / Originalidade', desc: 'Apresentou abordagens inovadoras ou exemplos diferenciados.', peso: 5 },
+            { id: 'c_10', dim: 'Conteúdo', label: 'Criatividade / Originalidade', desc: 'Apresentao abordagens inovadoras ou exemplos diferenciados.', peso: 5 },
             { id: 'c_11', dim: 'Comunicação', label: 'Comunicação Verbal', desc: 'Utilizou tom de voz audível, boa dicção e vocabulário formal.', peso: 5 },
             { id: 'c_12', dim: 'Comunicação', label: 'Postura Profissional', desc: 'Demonstrou ética, seriedade e linguagem corporal corporativa.', peso: 3 },
             { id: 'c_13', dim: 'Estrutura', label: 'Conclusão e Fechamento', desc: 'Finalizou respondendo ao objetivo principal com síntese clara.', peso: 3 },
@@ -392,7 +390,6 @@
             reader.readAsArrayBuffer(file);
         });
 
-        // Ajuste Imagem 2: Botão Iniciar movido para o lado direito do título (Header do card)
         function renderListaGrupos() {
             const container = document.getElementById('lista-grupos');
             if (dbGrupos.length === 0) { container.innerHTML = '<div class="col-12 text-center text-muted py-4">Aguardando importação da planilha...</div>'; return; }
@@ -471,6 +468,7 @@
         function retomarTimer() { isPausado = false; document.getElementById('btn-retomar').classList.add('d-none'); document.getElementById('btn-pausar').classList.remove('d-none'); }
         function finalizarApresentacao() { clearInterval(timerInterval); grupoAtivo = null; document.getElementById('sessao-ativa').classList.add('d-none'); document.getElementById('sessao-vazia').classList.remove('d-none'); renderListaGrupos(); }
 
+        // PROCESSO DE ENTRADA CORRIGIDO: Lê o formato de texto direto e limpo sem caracteres base64 sensíveis
         function processarTokensProfessor() {
             const rawText = document.getElementById('votos-brutos').value.trim();
             if(!rawText) return;
@@ -480,12 +478,8 @@
             linhas.forEach(l => {
                 if(!l.startsWith("ACAD-VOTE|")) return;
                 try {
-                    const base64Part = l.split('|')[1];
-                    const binString = atob(base64Part);
-                    const bytes = new Uint8Array(binString.length);
-                    for (let i = 0; i < binString.length; i++) { bytes[i] = binString.charCodeAt(i); }
-                    const decoder = new TextDecoder('utf-8');
-                    const json = JSON.parse(decoder.decode(bytes));
+                    const dadosLimpos = l.replace("ACAD-VOTE|", "").trim();
+                    const json = JSON.parse(dadosLimpos);
                     
                     if(!dbAvaliacoes.some(x => x.ra === json.ra && x.grupoId === json.grupoId)) { 
                         dbAvaliacoes.push(json); 
@@ -493,11 +487,12 @@
                     } else { 
                         dup++; 
                     }
-                } catch(e) { console.error(e); }
+                } catch(e) { 
+                    console.error("Erro no processamento:", e); 
+                }
             });
             document.getElementById('votos-brutos').value = "";
             
-            // Sincroniza dinamicamente as opções do filtro caso mude em tempo de execução
             const listaGruposVotados = [...new Set(dbAvaliacoes.map(x => x.grupo))];
             const select = document.getElementById('filtro-trabalho-grafico');
             const valSelecionadoAnteriormente = select.value;
@@ -513,7 +508,7 @@
             alert(`Processamento Concluído! ${ins} válidos | ${dup} duplicados.`);
         }
 
-        // Ajuste Imagem 3: Questões numeradas inseridas no design antes da barra/card lateral
+        // Correção das tags label e aspas duplas estruturais que causavam o travamento (Ajuste Crítico)
         function renderCriteriosForm() {
             document.getElementById('container-criterios').innerHTML = criteriosConfig.map((c, index) => {
                 const numeroFormatado = String(index + 1).padStart(2, '0');
@@ -541,7 +536,8 @@
             }).join('');
         }
 
-        function generarTokenAluno(e) {
+        // PROCESSO DE SAÍDA CORRIGIDO: Gera um JSON em formato string pura, sem base64 complexo, evitando falhas
+        function gerarTokenAluno(e) {
             e.preventDefault();
             const gId = document.getElementById('aluno-grupo-id').value;
             const fullTexto = document.getElementById('aluno-grupo-nome').value;
@@ -565,13 +561,8 @@
                 pontosFortes: document.getElementById('p-fortes').value.trim(),
                 pontosMelhorias: document.getElementById('p-melhorias').value.trim()
             };
-
-            const encoder = new TextEncoder();
-            const u8array = encoder.encode(JSON.stringify(aval));
-            let binString = "";
-            for (let i = 0; i < u8array.length; i++) { binString += String.fromCharCode(u8array[i]); }
             
-            document.getElementById('token-gerado').value = "ACAD-VOTE|" + btoa(binString);
+            document.getElementById('token-gerado').value = "ACAD-VOTE|" + JSON.stringify(aval);
             document.getElementById('form-avaliacao').classList.add('d-none');
             document.getElementById('aluno-sucesso').classList.remove('d-none');
         }
@@ -579,7 +570,7 @@
         function copiarTokenAluno() { const area = document.getElementById('token-gerado'); area.select(); navigator.clipboard.writeText(area.value); alert("Token Copiado!"); }
         function resgatarFormulario() { document.getElementById('form-avaliacao').reset(); document.getElementById('form-avaliacao').classList.remove('d-none'); document.getElementById('aluno-sucesso').classList.add('d-none'); }
 
-        // --- Dashboard com Motor de Filtro Ponderado Ativo ---
+        // --- Dashboard ---
         function renderDashboard() {
             const totalTotal = dbAvaliacoes.length;
             if (totalTotal === 0) {
@@ -592,7 +583,6 @@
             }
 
             const filtroFiltro = document.getElementById('filtro-trabalho-grafico').value;
-            // Separa os dados de acordo com o filtro do trabalho selecionado (Ajuste Imagem 1)
             const amostrasDashboard = filtroFiltro === 'GERAL' ? dbAvaliacoes : dbAvaliacoes.filter(x => x.grupo === filtroFiltro);
             const total = amostrasDashboard.length;
 
@@ -664,7 +654,7 @@
             `).join('');
         }
 
-        // --- Exportadores Excel ---
+        // --- Exportador Excel ---
         function exportarResultadosXLSX() {
             if (dbAvaliacoes.length === 0) return;
             const wb = XLSX.utils.book_new();
@@ -682,7 +672,7 @@
                 });
                 linha["Nota Final Ponderada (0-10)"] = parseFloat(((totalConq / totalMax) * 10).toFixed(2));
                 linha["Pontos Fortes"] = x.pontosFortes;
-                linha["Pontos de Melhorias"] = x.pontosMelhorias;
+                linha["Nota de Melhorias"] = x.pontosMelhorias;
                 return linha;
             });
             XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dadosAba1), "Avaliações");
