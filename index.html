@@ -162,7 +162,7 @@
             <!-- Lista de Grupos -->
             <h4 class="mb-3 text-muted">Lista de Grupos da Disciplina</h4>
             <div id="lista-grupos" class="row row-cols-1 row-cols-md-3 g-3 mb-5">
-                <div class="col-12 text-center text-muted py-4">Aguardando importação da planilha...</div>
+                <div class="col-12 text-center text-muted py-4">Por favor, carregue a planilha mestre para iniciar.</div>
             </div>
 
             <!-- Dashboard -->
@@ -242,7 +242,7 @@
                             <div id="aluno-sucesso" class="d-none text-center py-4">
                                 <i class="fa-solid fa-circle-check text-success fa-3x mb-3"></i>
                                 <h4 class="text-success">Avaliação Gerada!</h4>
-                                <p class="small text-muted">Para computar seu voto na planilha do professor, clique no botão abaixo para copiar o seu token e cole no chat da aula ou grupo indicado.</p>
+                                <p class="small text-muted">Para computar seu voto na planilha do professor, clique no botão abaixo para copiar o seu token de validação e cole no chat da aula ou grupo indicado.</p>
                                 <textarea id="token-gerado" class="form-control text-center font-monospace small mb-3 bg-light" readonly rows="3" style="font-size: 0.8rem; height: 90px;"></textarea>
                                 <button class="btn btn-success w-100 fw-bold py-2" onclick="copiarTokenAluno()">
                                     <i class="fa-solid fa-copy me-2"></i>COPIAR TOKEN DE AVALIAÇÃO
@@ -306,8 +306,9 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <script>
-        let dbGrupos = JSON.parse(localStorage.getItem('acad_grupos')) || [];
-        let dbCriterios = JSON.parse(localStorage.getItem('acad_criterios')) || [];
+        // Correção de inicialização: Força a página a vir 100% vazia se não houver upload novo
+        let dbGrupos = [];
+        let dbCriterios = [];
         let dbAvaliacoes = []; 
         let grupoAtivo = null;
         let timerInterval = null;
@@ -315,16 +316,14 @@
         let isPausado = false;
         let chartInstance = null;
 
-        // Fallback de segurança se carregar a primeira vez zerado
-        let padraoCriterios = [
+        // Fallback estrutural básico inicial
+        let criteriosConfig = [
             { id: 'c_1', dim: 'Equipe', label: 'Trabalho em Equipe', desc: 'Integração e cooperação mútua.', peso: 8 },
             { id: 'c_2', dim: 'Estrutura', label: 'Organização e Qualidade dos Slides', desc: 'Estrutura lógica e suporte visual.', peso: 8 },
             { id: 'c_3', dim: 'Recursos', label: 'Uso de Recursos Audiovisuais', desc: 'Utilizou mídias de suporte adequadamente.', peso: 5 },
             { id: 'c_4', dim: 'Conteúdo', label: 'Domínio do Assunto', desc: 'Demonstrou segurança e respondeu com precisão.', peso: 15 },
             { id: 'c_5', dim: 'Conteúdo', label: 'Clareza', desc: 'Explicou os conceitos de forma compreensível.', peso: 10 }
         ];
-
-        let criteriosConfig = dbCriterios.length > 0 ? dbCriterios : padraoCriterios;
 
         document.addEventListener('DOMContentLoaded', () => {
             renderListaGrupos();
@@ -350,7 +349,6 @@
                 document.getElementById('aluno-grupo-nome').value = `${nomeGrupo} [${temaGrupo}]`;
                 document.getElementById('aluno-grupo-integrantes').innerText = membrosGrupo;
 
-                // ATUALIZAÇÃO CRÍTICA: O aluno reconstrói os critérios dinâmicos enviados na URL de forma compactada
                 if(params.has('gCrits')) {
                     try { criteriosConfig = JSON.parse(decodificarParametroSeguro(params.get('gCrits'))); } catch(e){ console.error(e); }
                 }
@@ -375,10 +373,10 @@
                 const data = new Uint8Array(evt.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
                 
-                // 1. IMPORTAÇÃO DE GRUPOS
                 const nomeAbaGrupos = workbook.SheetNames.find(n => n.toLowerCase().trim() === 'grupos' || n.toLowerCase().trim() === 'grupo');
                 if (!nomeAbaGrupos) { alert('Erro: O arquivo precisa conter a aba "Grupos".'); return; }
-                const jsonGrupos = XLSX.utils.sheet_to_json(workbook.Sheets[nomeAbaGrupos]);
+                const wsGrupos = workbook.Sheets[nomeAbaGrupos];
+                const jsonGrupos = XLSX.utils.sheet_to_json(wsGrupos);
                 dbGrupos = jsonGrupos.map((item, index) => {
                     const findKey = (arrNames) => {
                         const found = Object.keys(item).find(k => arrNames.includes(k.toLowerCase().trim()));
@@ -391,9 +389,7 @@
                         integrantes: findKey(['alunos', 'aluno', 'integrantes', 'membros']) || 'Não informados'
                     };
                 });
-                localStorage.setItem('acad_grupos', JSON.stringify(dbGrupos));
 
-                // 2. IMPORTAÇÃO DINÂMICA DE CRITÉRIOS (Lê e atualiza os 5, 14 ou qualquer número de critérios na hora!)
                 const nomeAbaCrit = workbook.SheetNames.find(n => n.toLowerCase().trim() === 'critérios' || n.toLowerCase().trim() === 'criterios');
                 if (nomeAbaCrit) {
                     const jsonCrit = XLSX.utils.sheet_to_json(workbook.Sheets[nomeAbaCrit]);
@@ -405,21 +401,21 @@
                             desc: item.Descrição || item.Descricao || 'Avalie o desempenho.',
                             peso: parseFloat(item.Peso) || 1
                         }));
-                        localStorage.setItem('acad_criterios', JSON.stringify(criteriosConfig));
                     }
                 }
                 
+                dbAvaliacoes = []; // Reseta avaliações antigas ao subir nova planilha
                 renderListaGrupos();
                 atualizarDropdownFiltro();
                 renderDashboard();
-                alert(`Sucesso!\n- ${dbGrupos.length} Grupos importados.\n- ${criteriosConfig.length} Critérios carregados do Excel.`);
+                alert(`Sucesso!\n- ${dbGrupos.length} Grupos importados.\n- ${criteriosConfig.length} Critérios carregados.`);
             };
             reader.readAsArrayBuffer(file);
         });
 
         function renderListaGrupos() {
             const container = document.getElementById('lista-grupos');
-            if (dbGrupos.length === 0) { container.innerHTML = '<div class="col-12 text-center text-muted py-4">Aguardando importação da planilha...</div>'; return; }
+            if (dbGrupos.length === 0) { container.innerHTML = '<div class="col-12 text-center text-muted py-4"><i class="fa-solid fa-folder-open me-2"></i>Aguardando importação da planilha mestre...</div>'; return; }
             container.innerHTML = dbGrupos.map(g => {
                 const isAtivo = grupoAtivo && grupoAtivo.id === g.id;
                 return `
@@ -472,8 +468,6 @@
             const qrContainer = document.getElementById('qrcode');
             qrContainer.innerHTML = "";
             const urlBase = window.location.href.split('?')[0];
-            
-            // ATUALIZAÇÃO DO LINK MESTRE: Injeta os critérios ativos compactados no link para o celular do aluno se adaptar na hora!
             const urlFinal = `${urlBase}?gId=${grupoAtivo.id}&gNome=${encodeURIComponent(grupoAtivo.nome)}&gTema=${encodeURIComponent(grupoAtivo.tema)}&gMembros=${encodeURIComponent(grupoAtivo.integrantes)}&gCrits=${encodeURIComponent(JSON.stringify(criteriosConfig))}`;
             
             new QRCode(qrContainer, { text: urlFinal, width: 130, height: 130, colorDark : "#2c3e50", colorLight : "#ffffff" });
@@ -573,7 +567,7 @@
                 pontosMelhorias: document.getElementById('p-melhorias').value.trim()
             };
             
-            document.getElementById('token-gerado').value = "ACAD-VOTE|" + JSON.stringify(aval);
+            document.getElementById('token-generado').value = "ACAD-VOTE|" + JSON.stringify(aval);
             document.getElementById('form-avaliacao').classList.add('d-none');
             document.getElementById('aluno-sucesso').classList.remove('d-none');
         }
@@ -661,7 +655,7 @@
             `).join('');
         }
 
-        // --- Exportador Excel ---
+        // --- EXPORTADOR DINÂMICO CORRIGIDO (Altera as colunas conforme os novos critérios da planilha) ---
         function exportarResultadosXLSX() {
             if (dbAvaliacoes.length === 0) return;
             const wb = XLSX.utils.book_new();
