@@ -441,18 +441,35 @@
         function retomarTimer() { isPausado = false; document.getElementById('btn-retomar').classList.add('d-none'); document.getElementById('btn-pausar').classList.remove('d-none'); }
         function finalizarApresentacao() { clearInterval(timerInterval); grupoAtivo = null; document.getElementById('sessao-ativa').classList.add('d-none'); document.getElementById('sessao-vazia').classList.remove('d-none'); renderListaGrupos(); }
 
+        // MÓDULO CORRIGIDO: Conversão limpa de caracteres especiais e acentos sem travar
         function processarTokensProfessor() {
             const rawText = document.getElementById('votos-brutos').value.trim();
             if(!rawText) return;
             const linhas = rawText.split('\n');
             let ins = 0, dup = 0;
+            
             linhas.forEach(l => {
                 if(!l.startsWith("ACAD-VOTE|")) return;
                 try {
-                    // Decodificação segura tratando caracteres UTF-8
-                    const json = JSON.parse(decodeURIComponent(escape(atob(l.split('|')[1]))));
-                    if(!dbAvaliacoes.some(x => x.ra === json.ra && x.grupoId === json.grupoId)) { dbAvaliacoes.push(json); ins++; } else { dup++; }
-                } catch(e) { console.error(e); }
+                    // Decodificação universal segura para navegadores (suporta emojis, acentos e caracteres especiais)
+                    const base64Part = l.split('|')[1];
+                    const binString = atob(base64Part);
+                    const bytes = new Uint8Array(binString.length);
+                    for (let i = 0; i < binString.length; i++) {
+                        bytes[i] = binString.charCodeAt(i);
+                    }
+                    const decoder = new TextDecoder('utf-8');
+                    const json = JSON.parse(decoder.decode(bytes));
+                    
+                    if(!dbAvaliacoes.some(x => x.ra === json.ra && x.grupoId === json.grupoId)) { 
+                        dbAvaliacoes.push(json); 
+                        ins++; 
+                    } else { 
+                        dup++; 
+                    }
+                } catch(e) { 
+                    console.error("Erro no processamento:", e); 
+                }
             });
             document.getElementById('votos-brutos').value = "";
             renderDashboard();
@@ -493,8 +510,7 @@
             const notasVotadasPorId = {};
             criteriosConfig.forEach(c => {
                 const el = document.querySelector(`input[name="crit-${c.id}"]:checked`);
-                // BLINDAGEM CONTRA ACENTOS: O Token agora armazena o ID (c_1, c_2) que nunca tem acento!
-                notasVotadasPorId[c.id] = el ? parseInt(el.value) : 5;
+                notasVotadasPorId[c.id] = el ? parseInt(el.value) : 1; // Fallback para 1 se der algum erro de seleção
             });
 
             const aval = {
@@ -502,13 +518,20 @@
                 grupo: fullTexto.split(' [')[0],
                 tema: fullTexto.includes('[') ? fullTexto.split('[')[1].replace(']', '') : 'Não informado',
                 membrosGrupo: membrosTexto,
-                votosId: notasVotadasPorId, // Usa IDs estáveis em vez de texto com acento
+                votosId: notasVotadasPorId, 
                 pontosFortes: document.getElementById('p-fortes').value.trim(),
                 pontosMelhorias: document.getElementById('p-melhorias').value.trim()
             };
 
-            // Codificação segura tratando caracteres UTF-8
-            const tokenInjetavel = "ACAD-VOTE|" + btoa(unescape(encodeURIComponent(JSON.stringify(aval))));
+            // Codificação UTF-8 robusta para Base64 nativo
+            const encoder = new TextEncoder();
+            const u8array = encoder.encode(JSON.stringify(aval));
+            let binString = "";
+            for (let i = 0; i < u8array.length; i++) {
+                binString += String.fromCharCode(u8array[i]);
+            }
+            const tokenInjetavel = "ACAD-VOTE|" + btoa(binString);
+            
             document.getElementById('token-gerado').value = tokenInjetavel;
             document.getElementById('form-avaliacao').classList.add('d-none');
             document.getElementById('aluno-sucesso').classList.remove('d-none');
@@ -533,7 +556,7 @@
             const mediasPontosPorCrit = criteriosConfig.map(c => {
                 let s = 0;
                 dbAvaliacoes.forEach(a => {
-                    const estrela = a.votosId && a.votosId[c.id] !== undefined ? a.votosId[c.id] : 5;
+                    const estrela = a.votosId && a.votosId[c.id] !== undefined ? a.votosId[c.id] : 1;
                     s += (estrela / 5) * c.peso;
                 });
                 return (s / total);
@@ -543,7 +566,7 @@
                 let pontosConquistados = 0;
                 let pontosMaximosPossiveis = 0;
                 criteriosConfig.forEach(c => {
-                    const estrelas = a.votosId && a.votosId[c.id] !== undefined ? a.votosId[c.id] : 5;
+                    const estrelas = a.votosId && a.votosId[c.id] !== undefined ? a.votosId[c.id] : 1;
                     pontosConquistados += (estrelas / 5) * c.peso;
                     pontosMaximosPossiveis += c.peso;
                 });
@@ -556,7 +579,7 @@
             dbAvaliacoes.forEach(a => {
                 if(!ranking[a.grupo]) ranking[a.grupo] = { ptConq: 0, ptMax: 0 };
                 criteriosConfig.forEach(c => {
-                    const estrela = a.votosId && a.votosId[c.id] !== undefined ? a.votosId[c.id] : 5;
+                    const estrela = a.votosId && a.votosId[c.id] !== undefined ? a.votosId[c.id] : 1;
                     ranking[a.grupo].ptConq += (estrela / 5) * c.peso;
                     ranking[a.grupo].ptMax += c.peso;
                 });
@@ -598,7 +621,7 @@
                 let totalConq = 0, totalMax = 0;
                 
                 criteriosConfig.forEach(c => {
-                    const estrelas = x.votosId && x.votosId[c.id] !== undefined ? x.votosId[c.id] : 5;
+                    const estrelas = x.votosId && x.votosId[c.id] !== undefined ? x.votosId[c.id] : 1;
                     const valorComPesoCalculado = (estrelas / 5) * c.peso;
                     linha[c.label] = parseFloat(valorComPesoCalculado.toFixed(2));
                     
@@ -623,7 +646,7 @@
                 criteriosConfig.forEach(c => {
                     let totalPontosDoCriterio = 0;
                     amostras.forEach(a => {
-                        const estrela = a.votosId && a.votosId[c.id] !== undefined ? a.votosId[c.id] : 5;
+                        const estrela = a.votosId && a.votosId[c.id] !== undefined ? a.votosId[c.id] : 1;
                         totalPontosDoCriterio += (estrela / 5) * c.peso;
                     });
                     let mediaPonderadaDoCrit = totalPontosDoCriterio / n;
@@ -631,7 +654,7 @@
                     sMediasEscolares += mediaPonderadaDoCrit;
                 });
 
-                let totalPesos = acrescentarPesos = criteriosConfig.reduce((acc, curr) => acc + curr.peso, 0);
+                let totalPesos = criteriosConfig.reduce((acc, curr) => acc + curr.peso, 0);
                 linhaResumo["Nota Final Ponderada (0-10)"] = parseFloat(((sMediasEscolares / totalPesos) * 10).toFixed(2));
                 dadosAba2.push(linhaResumo);
             });
