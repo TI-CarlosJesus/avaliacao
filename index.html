@@ -55,7 +55,7 @@
             color: #f39c12;
         }
         .cronometro {
-            font-size: 2.5rem;
+            font-size: 3rem;
             font-weight: bold;
             font-family: monospace;
             color: var(--primary-color);
@@ -67,17 +67,18 @@
 </head>
 <body>
 
-    <nav class="navbar navbar-academic mb-4shadow-sm">
+    <nav class="navbar navbar-academic mb-4 shadow-sm">
         <div class="container">
             <span class="navbar-brand mb-0 h1 text-white">
                 <i class="fa-solid fa-graduation-cap me-2"></i>Avaliação de Apresentações Acadêmicas
             </span>
-            <div class="d-flex">
+            <!-- Menu ocultado dinamicamente para o aluno -->
+            <div class="d-flex" id="menu-navegacao">
                 <button class="btn btn-outline-light btn-sm me-2" onclick="switchView('professor')">
                     <i class="fa-solid fa-chalkboard-user me-1"></i>Painel Professor
                 </button>
                 <button class="btn btn-outline-light btn-sm" onclick="switchView('aluno')">
-                    <i class="fa-solid fa-user-graduate me-1"></i>Área do Aluno
+                    <i class="fa-solid fa-user-graduate me-1"></i>Área do Aluno Teste
                 </button>
             </div>
         </div>
@@ -89,10 +90,16 @@
             <div class="row g-4 mb-4">
                 <div class="col-md-4">
                     <div class="card shadow-sm h-100">
-                        <div class="card-body">
-                            <h5 class="card-title text-muted"><i class="fa-solid fa-file-import me-2"></i>1. Importar Grupos</h5>
-                            <p class="small text-muted">Importe a planilha Excel contendo a aba <strong>Grupos</strong> (Colunas: Grupo, Tema, Integrantes).</p>
-                            <input type="file" id="upload-excel" class="form-control form-control-sm" accept=".xlsx, .xls">
+                        <div class="card-body d-flex flex-column justify-content-between">
+                            <div>
+                                <h5 class="card-title text-muted"><i class="fa-solid fa-file-import me-2"></i>1. Configurar Sessão</h5>
+                                <p class="small text-muted mb-2">Importe a aba <strong>Grupos</strong> (Grupo, Tema, Integrantes).</p>
+                                <input type="file" id="upload-excel" class="form-control form-control-sm mb-3" accept=".xlsx, .xls">
+                            </div>
+                            <div>
+                                <label class="form-label small fw-bold text-muted">Tempo da Apresentação (minutos):</label>
+                                <input type="number" id="tempo-definido" class="form-control form-control-sm text-center fw-bold text-primary" value="15" min="1">
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -107,9 +114,20 @@
                                         <div class="col-sm-7">
                                             <h4 id="ativo-nome" class="text-primary mb-1">Grupo 01</h4>
                                             <p id="ativo-tema" class="text-muted mb-2">Tema do Trabalho</p>
-                                            <div class="cronometro id" id="cronometro">15:00</div>
-                                            <button class="btn btn-danger btn-sm mt-2" onclick="finalizarApresentacao()">
-                                                <i class="fa-solid fa-stop me-1"></i>Finalizar e Consolidadar
+                                            <div class="cronometro mb-2" id="cronometro">15:00</div>
+                                            
+                                            <!-- Controles de Tempo -->
+                                            <div class="btn-group btn-group-sm me-2 mb-2">
+                                                <button class="btn btn-warning" id="btn-pausar" onclick="pausarTimer()">
+                                                    <i class="fa-solid fa-pause me-1"></i>Pausar
+                                                </button>
+                                                <button class="btn btn-success d-none" id="btn-retomar" onclick="retomarTimer()">
+                                                    <i class="fa-solid fa-play me-1"></i>Retomar
+                                                </button>
+                                            </div>
+
+                                            <button class="btn btn-danger btn-sm mb-2" onclick="finalizarApresentacao()">
+                                                <i class="fa-solid fa-stop me-1"></i>Finalizar e Consolidar
                                             </button>
                                         </div>
                                         <div class="col-sm-5 text-center">
@@ -135,28 +153,28 @@
             <!-- Dashboard de Resultados -->
             <div id="dashboard-resultados" class="d-none">
                 <hr class="my-5">
-                <div class="d-flex justify-content-between align-items-center mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
                     <h3 class="text-secondary mb-0"><i class="fa-solid fa-chart-pie me-2"></i>Dashboard de Desempenho</h3>
-                    <button class="btn btn-success" onclick="exportarResultadosXLSX()">
+                    <button class="btn btn-success shadow-sm" onclick="exportarResultadosXLSX()">
                         <i class="fa-solid fa-file-excel me-2"></i>Exportar Consolidação Geral (.XLSX)
                     </button>
                 </div>
 
                 <div class="row g-3 mb-4">
                     <div class="col-md-4">
-                        <div class="card bg-primary text-white text-center p-3">
+                        <div class="card bg-primary text-white text-center p-3 shadow-sm">
                             <h2 id="dash-total-aval">0</h2>
                             <div>Total de Avaliações Recebidas</div>
                         </div>
                     </div>
                     <div class="col-md-4">
-                        <div class="card bg-success text-white text-center p-3">
+                        <div class="card bg-success text-white text-center p-3 shadow-sm">
                             <h2 id="dash-media-geral">0.0</h2>
                             <div>Média Geral da Turma</div>
                         </div>
                     </div>
                     <div class="col-md-4">
-                        <div class="card bg-info text-white text-center p-3">
+                        <div class="card bg-info text-white text-center p-3 shadow-sm">
                             <h2 id="dash-grupo-top">-</h2>
                             <div>Grupo Melhor Avaliado</div>
                         </div>
@@ -165,15 +183,17 @@
 
                 <div class="row g-4">
                     <div class="col-md-6">
-                        <div class="card shadow-sm p-3">
+                        <div class="card shadow-sm p-3 h-100">
                             <h5>Média por Critério</h5>
-                            <canvas id="chartCriterios" height="250"></canvas>
+                            <div style="position: relative; height:250px; width:100%">
+                                <canvas id="chartCriterios"></canvas>
+                            </div>
                         </div>
                     </div>
                     <div class="col-md-6">
-                        <div class="card shadow-sm p-3">
+                        <div class="card shadow-sm p-3 h-100">
                             <h5>Feedbacks Construtivos (Últimos Comentários)</h5>
-                            <div id="dash-comentarios" class="overflow-y-auto" style="max-height: 250px;">
+                            <div id="dash-comentarios" class="overflow-y-auto mt-2" style="max-height: 240px;">
                                 <p class="text-muted small">Nenhum feedback em texto registrado.</p>
                             </div>
                         </div>
@@ -188,7 +208,7 @@
                 <div class="col-md-6">
                     <div class="card shadow-sm">
                         <div class="card-header bg-dark text-white text-center py-3">
-                            <h5 class="mb-0">Ficha de Avaliação de Projetos</h5>
+                            <h5 class="mb-0"><i class="fa-solid fa-pen-to-square me-2"></i>Ficha de Avaliação por Pares</h5>
                         </div>
                         <div class="card-body p-4">
                             <div id="aluno-alerta-grupo" class="alert alert-warning text-center d-none">
@@ -197,42 +217,41 @@
 
                             <form id="form-avaliacao" onsubmit="enviarAvaliacao(event)">
                                 <div class="mb-3">
-                                    <label class="form-label font-weight-bold">Grupo em Apresentação</label>
-                                    <input type="text" id="aluno-grupo-nome" class="form-control bg-light" readonly value="Nenhum grupo ativo">
+                                    <label class="form-label fw-bold">Grupo em Apresentação</label>
+                                    <input type="text" id="aluno-grupo-nome" class="form-control bg-light fw-bold text-secondary" readonly value="Nenhum grupo ativo">
                                     <input type="hidden" id="aluno-grupo-id">
                                 </div>
 
                                 <div class="row g-3 mb-3">
                                     <div class="col-sm-6">
-                                        <label class="form-label">Seu RA</label>
+                                        <label class="form-label small">Seu RA</label>
                                         <input type="text" id="aluno-ra" class="form-control form-control-sm" required>
                                     </div>
                                     <div class="col-sm-6">
-                                        <label class="form-label">Seu Nome Completo</label>
+                                        <label class="form-label small">Seu Nome Completo</label>
                                         <input type="text" id="aluno-nome" class="form-control form-control-sm" required>
                                     </div>
                                 </div>
                                 <div class="mb-4">
-                                    <label class="form-label">Seu E-mail</label>
+                                    <label class="form-label small">Seu E-mail</label>
                                     <input type="email" id="aluno-email" class="form-control form-control-sm" required>
                                 </div>
 
-                                <h5 class="border-bottom pb-2 mb-3 text-muted">Critérios de Desempenho (1 a 5 Estrelas)</h5>
-
+                                <h5 class="border-bottom pb-2 mb-3 text-muted small fw-bold text-uppercase">Critérios (1 a 5 Estrelas)</h5>
                                 <div id="container-criterios"></div>
 
-                                <h5 class="border-bottom pb-2 mt-4 mb-3 text-muted">Feedback Qualitativo</h5>
+                                <h5 class="border-bottom pb-2 mt-4 mb-3 text-muted small fw-bold text-uppercase">Feedback Dissertativo</h5>
                                 <div class="mb-3">
                                     <label class="form-label text-success small fw-bold">Pontos Fortes</label>
-                                    <textarea id="p-fortes" class="form-control form-control-sm" rows="2" placeholder="O que o grupo fez de melhor?"></textarea>
+                                    <textarea id="p-fortes" class="form-control form-control-sm" rows="2" placeholder="O que se destacou positivamente?"></textarea>
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label text-danger small fw-bold">Pontos de Melhoria</label>
-                                    <textarea id="p-melhorias" class="form-control form-control-sm" rows="2" placeholder="Onde eles podem evoluir?"></textarea>
+                                    <textarea id="p-melhorias" class="form-control form-control-sm" rows="2" placeholder="O que pode ser aperfeiçoado?"></textarea>
                                 </div>
 
-                                <button type="submit" class="btn btn-primary w-100 py-2 mt-3">
-                                    <i class="fa-solid fa-paper-plane me-2"></i>Submeter Avaliação Oficial
+                                <button type="submit" class="btn btn-primary w-100 py-2 mt-3 fw-bold">
+                                    <i class="fa-solid fa-paper-plane me-2"></i>Enviar Minha Avaliação
                                 </button>
                             </form>
                         </div>
@@ -242,43 +261,59 @@
         </div>
     </div>
 
-    <!-- CDNs Requeridas -->
+    <!-- CDNs Obrigatórias -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <script>
-        // --- Estado Global da Aplicação ---
+        // --- Armazenamento em Memória Ativa ---
         let dbGrupos = JSON.parse(localStorage.getItem('acad_grupos')) || [];
         let dbAvaliacoes = JSON.parse(localStorage.getItem('acad_avaliacoes')) || [];
         let grupoAtivo = JSON.parse(localStorage.getItem('acad_grupo_ativo')) || null;
+        
         let timerInterval = null;
+        let tempoRestante = 0; 
+        let isPausado = false;
         let chartInstance = null;
 
         const criteriosConfig = [
             { id: 'dominio', label: 'Domínio do Assunto', desc: 'Demonstrou segurança e respondeu perguntas com precisão.' },
-            { id: 'clareza', label: 'Clareza e Conectividade', desc: 'Apresentação linear, compreensível e articulada.' },
-            { id: 'organizacao', label: 'Organização do Grupo', desc: 'Divisão clara de falas e postura profissional integrada.' },
-            { id: 'slides', label: 'Qualidade dos Slides/Material', desc: 'Suporte visual limpo, legível e sem excesso de texto.' },
-            { id: 'tempo', label: 'Controle de Tempo', desc: 'Conclusão adequada dentro da janela de 10 a 15 minutos.' }
+            { id: 'clareza', label: 'Clareza', desc: 'Apresentação linear, compreensível e articulada.' },
+            { id: 'organizacao', label: 'Organização', desc: 'Divisão clara de falas e postura integrada do grupo.' },
+            { id: 'slides', label: 'Qualidade os Slides', desc: 'Suporte visual limpo, legível e bem estruturado.' },
+            { id: 'tempo', label: 'Controle de Tempo', desc: 'Conclusão adequada dentro da janela estipulada.' }
         ];
 
-        // --- Inicialização ---
         document.addEventListener('DOMContentLoaded', () => {
             renderCriteriosForm();
             renderListaGrupos();
-            detectarGrupoUrl();
-            atualizarPainelAtivo();
-            renderDashboard();
+            verificarModoAcesso();
         });
+
+        // Bloqueia navegação se detectar parâmetros de aluno na URL
+        function verificarModoAcesso() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.has('gId')) {
+                document.getElementById('menu-navegacao').classList.add('d-none'); // Esconde menu totalmente
+                switchView('aluno');
+                document.getElementById('aluno-grupo-id').value = params.get('gId');
+                document.getElementById('aluno-grupo-nome').value = `${params.get('gNome')} [${params.get('gTema')}]`;
+                document.getElementById('aluno-alerta-grupo').classList.add('d-none');
+            } else {
+                switchView('professor');
+                if(grupoAtivo) atualizarPainelAtivo();
+                renderDashboard();
+            }
+        }
 
         function switchView(view) {
             document.querySelectorAll('.view-section').forEach(el => el.classList.add('d-none'));
             document.getElementById(`view-${view}`).classList.remove('d-none');
         }
 
-        // --- Mecanismo do Professor: Importação e Gerenciamento ---
+        // --- Professor: Configuração e Carga ---
         document.getElementById('upload-excel').addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
@@ -289,7 +324,7 @@
                 const workbook = XLSX.read(data, { type: 'array' });
                 
                 if (!workbook.SheetNames.includes('Grupos')) {
-                    alert('Erro: A planilha deve conter obrigatoriamente uma aba chamada "Grupos".');
+                    alert('Erro: Planilha precisa conter a aba chamada "Grupos".');
                     return;
                 }
 
@@ -305,7 +340,7 @@
 
                 localStorage.setItem('acad_grupos', JSON.stringify(dbGrupos));
                 renderListaGrupos();
-                alert(`${dbGrupos.length} grupos importados com sucesso!`);
+                alert(`${dbGrupos.length} grupos carregados com sucesso!`);
             };
             reader.readAsArrayBuffer(file);
         });
@@ -321,17 +356,17 @@
                 const isAtivo = grupoAtivo && grupoAtivo.id === g.id;
                 return `
                     <div class="col">
-                        <div class="card h-100 card-group shadow-sm ${isAtivo ? 'active-group-card' : ''}" id="card-grupo-${g.id}">
+                        <div class="card h-100 card-group shadow-sm ${isAtivo ? 'active-group-card' : ''}">
                             <div class="card-body d-flex flex-column justify-content-between">
                                 <div>
                                     <h5 class="card-title text-primary fw-bold">${g.nome}</h5>
                                     <h6 class="card-subtitle mb-2 text-muted small"><strong>Tema:</strong> ${g.tema}</h6>
-                                    <p class="card-text text-secondary" style="font-size:0.85rem;"><strong>Membros:</strong> ${g.integrantes}</p>
+                                    <p class="card-text text-secondary small"><strong>Membros:</strong> ${g.integrantes}</p>
                                 </div>
                                 <div class="mt-3">
                                     ${isAtivo 
-                                        ? `<button class="btn btn-warning btn-sm w-100 disabled">Em Apresentação...</button>`
-                                        : `<button class="btn btn-outline-primary btn-sm w-100" onclick="iniciarApresentacao(${g.id})"><i class="fa-solid fa-play me-1"></i>Iniciar Apresentação</button>`
+                                        ? `<button class="btn btn-warning btn-sm w-100 disabled">Apresentando agora...</button>`
+                                        : `<button class="btn btn-outline-primary btn-sm w-100" onclick="iniciarApresentacao(${g.id})"><i class="fa-solid fa-play me-1"></i>Iniciar</button>`
                                     }
                                 </div>
                             </div>
@@ -342,95 +377,104 @@
         }
 
         function iniciarApresentacao(id) {
-            const grupo = dbGrupos.find(g => g.id === id);
-            if (!grupo) return;
+            const g = dbGrupos.find(x => x.id === id);
+            if (!g) return;
 
-            grupoAtivo = grupo;
+            grupoAtivo = g;
             localStorage.setItem('acad_grupo_ativo', JSON.stringify(grupoAtivo));
             
+            const minutosDefinidos = parseInt(document.getElementById('tempo-definido').value) || 15;
+            tempoRestante = minutosDefinidos * 60;
+            isPausado = false;
+
             renderListaGrupos();
             atualizarPainelAtivo();
-            startTimer(15 * 60); // 15 Minutos padrão académico
+            dispararTimer();
         }
 
         function atualizarPainelAtivo() {
-            const vazia = document.getElementById('sessao-vazia');
+            document.getElementById('sessao-vazia').classList.add('d-none');
             const ativa = document.getElementById('sessao-ativa');
-            const qrcodeDiv = document.getElementById('qrcode');
-
-            if (!grupoAtivo) {
-                vazia.classList.remove('d-none');
-                ativa.classList.add('d-none');
-                return;
-            }
-
-            vazia.classList.add('d-none');
             ativa.classList.remove('d-none');
+
             document.getElementById('ativo-nome').innerText = grupoAtivo.nome;
             document.getElementById('ativo-tema').innerText = grupoAtivo.tema;
 
-            qrcodeDiv.innerHTML = "";
-            const linkBase = window.location.href.split('?')[0];
-            const urlFinal = `${linkBase}?gId=${grupoAtivo.id}&gNome=${encodeURIComponent(grupoAtivo.nome)}&gTema=${encodeURIComponent(grupoAtivo.tema)}`;
+            // Gerar URL Limpa Baseada no GitHub Pages
+            const qrContainer = document.getElementById('qrcode');
+            qrContainer.innerHTML = "";
             
-            new QRCode(qrcodeDiv, {
+            const urlBase = window.location.href.split('?')[0];
+            const urlFinal = `${urlBase}?gId=${grupoAtivo.id}&gNome=${encodeURIComponent(grupoAtivo.nome)}&gTema=${encodeURIComponent(grupoAtivo.tema)}`;
+            
+            new QRCode(qrContainer, {
                 text: urlFinal,
-                width: 128,
-                height: 128,
+                width: 120,
+                height: 120,
                 colorDark : "#2c3e50",
                 colorLight : "#ffffff"
             });
-            qrcodeDiv.setAttribute('data-link', urlFinal);
+            qrContainer.setAttribute('data-link', urlFinal);
         }
 
-        function copiarLinkAluno() {
-            const url = document.getElementById('qrcode').getAttribute('data-link');
-            if (url) {
-                navigator.clipboard.writeText(url);
-                alert('Link copiado para a área de transferência!');
-            }
-        }
-
-        function startTimer(duration) {
+        // --- Gerenciador do Cronômetro ---
+        function dispararTimer() {
             clearInterval(timerInterval);
-            let timer = duration, minutes, seconds;
-            const display = document.getElementById('cronometro');
-            
+            exibirMascaraTempo();
+
             timerInterval = setInterval(() => {
-                minutes = parseInt(timer / 60, 10);
-                seconds = parseInt(timer % 60, 10);
+                if (!isPausado) {
+                    tempoRestante--;
+                    exibirMascaraTempo();
 
-                minutes = minutes < 10 ? "0" + minutes : minutes;
-                seconds = seconds < 10 ? "0" + seconds : seconds;
-
-                display.textContent = minutes + ":" + seconds;
-
-                if (--timer < 0) {
-                    clearInterval(timerInterval);
-                    display.textContent = "TEMPO ESGOTADO";
+                    if (tempoRestante <= 0) {
+                        clearInterval(timerInterval);
+                        document.getElementById('cronometro').textContent = "TEMPO ESGOTADO";
+                    }
                 }
             }, 1000);
+        }
+
+        function exibirMascaraTempo() {
+            let mins = parseInt(tempoRestante / 60, 10);
+            let segs = parseInt(tempoRestante % 60, 10);
+            document.getElementById('cronometro').textContent = `${mins < 10 ? "0" + mins : mins}:${segs < 10 ? "0" + segs : segs}`;
+        }
+
+        function pausarTimer() {
+            isPausado = true;
+            document.getElementById('btn-pausar').classList.add('d-none');
+            document.getElementById('btn-retomar').classList.remove('d-none');
+        }
+
+        function retomarTimer() {
+            isPausado = false;
+            document.getElementById('btn-retomar').classList.add('d-none');
+            document.getElementById('btn-pausar').classList.remove('d-none');
         }
 
         function finalizarApresentacao() {
             clearInterval(timerInterval);
             grupoAtivo = null;
             localStorage.removeItem('acad_grupo_ativo');
+            
+            document.getElementById('sessao-ativa').classList.add('d-none');
+            document.getElementById('sessao-vazia').classList.remove('d-none');
+            
             renderListaGrupos();
-            atualizarPainelAtivo();
             renderDashboard();
             document.getElementById('dashboard-resultados').classList.remove('d-none');
+            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
         }
 
-        // --- Mecanismo do Aluno: Form e Avaliação ---
+        // --- Aluno: Interface de Notas ---
         function renderCriteriosForm() {
-            const container = document.getElementById('container-criterios');
-            container.innerHTML = criteriosConfig.map(c => `
-                <div class="mb-3 p-2 bg-light rounded border-start border-3 border-secondary">
+            document.getElementById('container-criterios').innerHTML = criteriosConfig.map(c => `
+                <div class="mb-3 p-2 bg-light rounded border-start border-3 border-primary shadow-sm">
                     <div class="d-flex justify-content-between align-items-center flex-wrap">
                         <div>
                             <label class="form-label mb-0 fw-bold small">${c.label}</label>
-                            <div class="text-muted text-xs d-block" style="font-size:0.75rem;">${c.desc}</div>
+                            <span class="text-muted text-xs d-block" style="font-size:0.75rem;">${c.desc}</span>
                         </div>
                         <div class="star-rating">
                             <input type="radio" id="star-${c.id}-5" name="crit-${c.id}" value="5" required/><label false for="star-${c.id}-5" class="fa-solid fa-star"></label>
@@ -444,22 +488,6 @@
             `).join('');
         }
 
-        function detectarGrupoUrl() {
-            const params = new URLSearchParams(window.location.search);
-            if (params.has('gId')) {
-                switchView('aluno');
-                document.getElementById('aluno-grupo-id').value = params.get('gId');
-                document.getElementById('aluno-grupo-nome').value = `${params.get('gNome')} - ${params.get('gTema')}`;
-                document.getElementById('aluno-alerta-grupo').classList.add('d-none');
-            } else if (grupoAtivo) {
-                document.getElementById('aluno-grupo-id').value = grupoAtivo.id;
-                document.getElementById('aluno-grupo-nome').value = `${grupoAtivo.nome} - ${grupoAtivo.tema}`;
-                document.getElementById('aluno-alerta-grupo').classList.add('d-none');
-            } else {
-                document.getElementById('aluno-alerta-grupo').classList.remove('d-none');
-            }
-        }
-
         function enviarAvaliacao(e) {
             e.preventDefault();
             const gId = document.getElementById('aluno-grupo-id').value;
@@ -467,184 +495,167 @@
             const ra = document.getElementById('aluno-ra').value.trim();
             const nome = document.getElementById('aluno-nome').value.trim();
 
-            if (!gId || gId === "") {
-                alert("Nenhum grupo ativo selecionado.");
+            if (!gId) { alert("Nenhum grupo ativo identificado."); return; }
+
+            // Bloqueio de duplicidade real
+            if (dbAvaliacoes.some(av => av.grupoId == gId && av.email === email)) {
+                alert("Sua avaliação para este grupo já foi registrada anteriormente!");
                 return;
             }
 
-            // Impede dupla submissão do mesmo aluno para o mesmo grupo
-            const jaAvaliou = dbAvaliacoes.some(av => av.grupoId == gId && av.email === email);
-            if (jaAvaliou) {
-                alert("Você já submeteu uma avaliação para este grupo!");
-                return;
-            }
+            const refGrupo = dbGrupos.find(x => x.id == gId) || { nome: "G-Desconhecido", tema: "T-Desconhecido" };
 
-            const infoGrupo = dbGrupos.find(g => g.id == gId) || { nome: "Desconhecido", tema: "Desconhecido" };
-
-            const avaliacaoObjeto = {
-                id: Date.now(),
+            const novaAvaliacao = {
                 ra: ra,
                 aluno: nome,
                 email: email,
                 grupoId: gId,
-                grupo: infoGrupo.nome,
-                tema: infoGrupo.tema,
+                grupo: refGrupo.nome,
+                tema: refGrupo.tema,
                 dominio: parseInt(document.querySelector(`input[name="crit-dominio"]:checked`).value),
                 clareza: parseInt(document.querySelector(`input[name="crit-clareza"]:checked`).value),
                 organizacao: parseInt(document.querySelector(`input[name="crit-organizacao"]:checked`).value),
                 slides: parseInt(document.querySelector(`input[name="crit-slides"]:checked`).value),
                 tempo: parseInt(document.querySelector(`input[name="crit-tempo"]:checked`).value),
-                postura: 5, // Atributo legado estrutural solicitado nos requisitos de saída
+                postura: 5, // Atributo legado exigido na estrutura
                 pontosFortes: document.getElementById('p-fortes').value.trim(),
                 pontosMelhorias: document.getElementById('p-melhorias').value.trim()
             };
 
-            dbAvaliacoes.push(avaliacaoObjeto);
+            dbAvaliacoes.push(novaAvaliacao);
             localStorage.setItem('acad_avaliacoes', JSON.stringify(dbAvaliacoes));
 
-            alert("Sua avaliação foi enviada e integrada com sucesso para consolidação em nuvem (OneDrive)!");
+            alert("Avaliação submetida com sucesso! Obrigado pela participação.");
             document.getElementById('form-avaliacao').reset();
-            switchView('professor');
-            renderDashboard();
         }
 
-        // --- Analytics & Inteligência de Negócio (Dashboard) ---
+        // --- Processamento de Métricas (Dashboard) ---
         function renderDashboard() {
-            if (dbAvaliacoes.length === 0) return;
+            if (dbAvaliacoes.length === 0) {
+                document.getElementById('dashboard-resultados').classList.add('d-none');
+                return;
+            }
 
+            document.getElementById('dashboard-resultados').classList.remove('d-none');
             document.getElementById('dash-total-aval').innerText = dbAvaliacoes.length;
             
-            // Médias por Critério
-            let somaCrit = { dominio: 0, clareza: 0, organizacao: 0, slides: 0, tempo: 0 };
-            dbAvaliacoes.forEach(av => {
-                somaCrit.dominio += av.dominio;
-                somaCrit.clareza += av.clareza;
-                somaCrit.organizacao += av.organizacao;
-                somaCrit.slides += av.slides;
-                somaCrit.tempo += av.tempo;
+            let sDom = 0, sCla = 0, sOrg = 0, sSli = 0, sTem = 0;
+            dbAvaliacoes.forEach(a => {
+                sDom += a.dominio; sCla += a.clareza; sOrg += a.organizacao; sSli += a.slides; sTem += a.tempo;
             });
 
             const total = dbAvaliacoes.length;
-            const medias = {
-                dominio: (somaCrit.dominio / total).toFixed(1),
-                clareza: (somaCrit.clareza / total).toFixed(1),
-                organizacao: (somaCrit.organizacao / total).toFixed(1),
-                slides: (somaCrit.slides / total).toFixed(1),
-                tempo: (somaCrit.tempo / total).toFixed(1)
-            };
+            const medDom = (sDom / total).toFixed(1);
+            const medCla = (sCla / total).toFixed(1);
+            const medOrg = (sOrg / total).toFixed(1);
+            const medSli = (sSli / total).toFixed(1);
+            const medTem = (sTem / total).toFixed(1);
 
-            const mediaGeral = ((parseFloat(medias.dominio) + parseFloat(medias.clareza) + parseFloat(medias.organizacao) + parseFloat(medias.slides) + parseFloat(medias.tempo)) / 5).toFixed(1);
-            document.getElementById('dash-media-geral').innerText = mediaGeral;
+            document.getElementById('dash-media-geral').innerText = ((parseFloat(medDom)+parseFloat(medCla)+parseFloat(medOrg)+parseFloat(medSli)+parseFloat(medTem))/5).toFixed(1);
 
-            // Encontrar melhor grupo
-            const gruposPerformance = {};
-            dbAvaliacoes.forEach(av => {
-                if(!gruposPerformance[av.grupo]) gruposPerformance[av.grupo] = { soma: 0, qtd: 0 };
-                gruposPerformance[av.grupo].soma += (av.dominio + av.clareza + av.organizacao + av.slides + av.tempo) / 5;
-                gruposPerformance[av.grupo].qtd++;
+            // Calcular Melhor Grupo Cadastrado
+            const ranking = {};
+            dbAvaliacoes.forEach(a => {
+                if(!ranking[a.grupo]) ranking[a.grupo] = { pt: 0, c: 0 };
+                ranking[a.grupo].pt += (a.dominio + a.clareza + a.organizacao + a.slides + a.tempo)/5;
+                ranking[a.grupo].c++;
             });
-            
-            let melhorGrupo = "-";
-            let maiorMedia = 0;
-            for (let g in gruposPerformance) {
-                let m = gruposPerformance[g].soma / gruposPerformance[g].qtd;
-                if(m > maiorMedia) { maiorMedia = m; melhorGrupo = g; }
+            let topG = "-"; let maxM = 0;
+            for (let name in ranking) {
+                let m = ranking[name].pt / ranking[name].c;
+                if(m > maxM) { maxM = m; topG = name; }
             }
-            document.getElementById('dash-grupo-top').innerText = melhorGrupo;
+            document.getElementById('dash-grupo-top').innerText = topG;
 
-            // Renderização do Gráfico
+            // Gráfico de Barras Chart.js
             const ctx = document.getElementById('chartCriterios').getContext('2d');
             if (chartInstance) chartInstance.destroy();
-            
             chartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: ['Domínio', 'Clareza', 'Organização', 'Slides', 'Tempo'],
                     datasets: [{
-                        label: 'Média de Notas (1-5)',
-                        data: [medias.dominio, medias.clareza, medias.organizacao, medias.slides, medias.tempo],
-                        backgroundColor: '#18bc9c',
-                        borderColor: '#128f76',
+                        label: 'Médias da Turma',
+                        data: [medDom, medCla, medOrg, medSli, medTem],
+                        backgroundColor: 'rgba(24, 188, 156, 0.7)',
+                        borderColor: 'rgba(18, 143, 118, 1)',
                         borderWidth: 1
                     }]
                 },
-                options: {
-                    scales: { y: { min: 0, max: 5 } },
-                    responsive: true,
-                    maintainAspectRatio: false
-                }
+                options: { scales: { y: { min: 0, max: 5 } }, responsive: true, maintainAspectRatio: false }
             });
 
-            // Listagem de comentários
-            const comContainer = document.getElementById('dash-comentarios');
-            const listaCom = dbAvaliacoes.filter(av => av.pontosFortes || av.pontosMelhorias);
-            if (listaCom.length === 0) {
-                comContainer.innerHTML = '<p class="text-muted small">Nenhum feedback em texto registrado.</p>';
+            // Feed de Comentários
+            const feed = document.getElementById('dash-comentarios');
+            const filtrados = dbAvaliacoes.filter(x => x.pontosFortes || x.pontosMelhorias);
+            if(filtrados.length === 0){
+                feed.innerHTML = '<p class="text-muted small">Nenhum feedback descritivo inserido.</p>';
             } else {
-                comContainer.innerHTML = listaCom.reverse().map(av => `
-                    <div class="p-2 border-bottom small">
-                        <strong>${av.grupo}:</strong><br>
-                        <span class="text-success">+++ ${av.pontosFortes || 'Sem comentários'}</span><br>
-                        <span class="text-danger">--- ${av.pontosMelhorias || 'Sem comentários'}</span>
+                feed.innerHTML = filtrados.reverse().map(x => `
+                    <div class="p-2 border-bottom small card mb-1 bg-white">
+                        <strong class="text-primary">${x.grupo}</strong>
+                        <div class="text-success text-xs"><strong>+</strong> ${x.pontosFortes || '-'}</div>
+                        <div class="text-danger text-xs"><strong>-</strong> ${x.pontosMelhorias || '-'}</div>
                     </div>
                 `).join('');
             }
         }
 
-        // --- Exportação Estruturada para Planilhas (SheetJS) ---
+        // --- Geração do arquivo XLSX unificado para OneDrive ---
         function exportarResultadosXLSX() {
             if (dbAvaliacoes.length === 0) {
-                alert("Não existem avaliações registradas para exportação.");
+                alert("Sem registros disponíveis para gerar relatório.");
                 return;
             }
 
             const wb = XLSX.utils.book_new();
 
-            // Aba 1: Avaliações Brutas em Conformidade com Requisitos de Saída
-            const dadosAvaliacoes = dbAvaliacoes.map(av => ({
-                "RA": av.ra,
-                "Aluno": av.aluno,
-                "Grupo": av.grupo,
-                "Tema": av.tema,
-                "Domínio do assunto": av.dominio,
-                "Clareza": av.clareza,
-                "Organização": av.organizacao,
-                "Qualidade dos slides": av.slides,
-                "Controle do tempo": av.tempo,
-                "Postura": av.postura,
-                "Pontos Fortes": av.pontosFortes,
-                "Pontos de Melhorias": av.pontosMelhorias
+            // Aba 1: Avaliações Brutas (Estrutura Obrigatória de Saída)
+            const abaAvaliacoes = dbAvaliacoes.map(x => ({
+                "RA": x.ra,
+                "Aluno": x.aluno,
+                "Grupo": x.grupo,
+                "Tema": x.tema,
+                "Domínio do assunto": x.dominio,
+                "Clareza": x.clareza,
+                "Organização": x.organizacao,
+                "Qualidade dos slides": x.slides,
+                "Controle do tempo": x.tempo,
+                "Postura": x.postura,
+                "Pontos Fortes": x.pontosFortes,
+                "Pontos de Melhorias": x.pontosMelhorias
             }));
-            const wsAval = XLSX.utils.json_to_sheet(dadosAvaliacoes);
-            XLSX.utils.book_append_sheet(wb, wsAval, "Avaliações");
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(abaAvaliacoes), "Avaliações");
 
-            // Aba 2: Resumo Executivo Gerencial
-            const resumoDados = [];
-            const gruposUnicos = [...new Set(dbAvaliacoes.map(av => av.grupo))];
+            // Aba 2: Resumo Gerencial
+            const resumoCalculado = [];
+            const listaGruposInstanciados = [...new Set(dbAvaliacoes.map(x => x.grupo))];
             
-            gruposUnicos.forEach(g => {
-                const filtradas = dbAvaliacoes.filter(av => av.grupo === g);
-                const qtd = filtradas.length;
-                let d = 0, c = 0, o = 0, s = 0, t = 0;
+            listaGruposInstanciados.forEach(nomeG => {
+                const amostras = dbAvaliacoes.filter(x => x.grupo === nomeG);
+                const n = samples = amostras.length;
+                let d=0, c=0, o=0, s=0, t=0;
+                amostras.forEach(a => { d+=a.dominio; c+=a.clareza; o+=a.organizacao; s+=a.slides; t+=a.tempo; });
                 
-                filtradas.forEach(f => { d+=f.dominio; c+=f.clareza; o+=f.organizacao; s+=f.slides; t+=f.tempo; });
-                
-                resumoDados.push({
-                    "Grupo": g,
-                    "Total Avaliadores": qtd,
-                    "Média Domínio": (d/qtd).toFixed(2),
-                    "Média Clareza": (c/qtd).toFixed(2),
-                    "Média Organização": (o/qtd).toFixed(2),
-                    "Média Slides": (s/qtd).toFixed(2),
-                    "Média Tempo": (t/qtd).toFixed(2),
-                    "Nota Final Conquistada": ((d+c+o+s+t)/(qtd*5)).toFixed(2)
+                resumoCalculado.push({
+                    "Grupo": nomeG,
+                    "Total de Avaliadores": n,
+                    "Média Domínio": (d/n).toFixed(2),
+                    "Média Clareza": (c/n).toFixed(2),
+                    "Média Organização": (o/n).toFixed(2),
+                    "Média Slides": (s/n).toFixed(2),
+                    "Média Tempo": (t/n).toFixed(2),
+                    "Média Final": ((d+c+o+s+t)/(n*5)).toFixed(2)
                 });
             });
-            const wsResumo = XLSX.utils.json_to_sheet(resumoDados);
-            XLSX.utils.book_append_sheet(wb, wsResumo, "Resumo");
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(resumoCalculado), "Resumo");
 
-            // Disparar Download
-            XLSX.writeFile(wb, `Consolidado_Avaliacoes_Academicas_${new Date().toISOString().slice(0,10)}.xlsx`);
+            XLSX.writeFile(wb, `Avaliacao_Turma_Consolidado.xlsx`);
+        }
+
+        function copiarLinkAluno() {
+            const url = document.getElementById('qrcode').getAttribute('data-link');
+            if (url) { navigator.clipboard.writeText(url); alert('Link de avaliação copiado!'); }
         }
     </script>
 </body>
