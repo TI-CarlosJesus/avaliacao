@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Avaliação Acadêmica por Pares</title>
+    <title>Sistema de Avaliação Acadêmica (Nuvem)</title>
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- FontAwesome para Estrelas -->
@@ -77,7 +77,7 @@
     <nav class="navbar navbar-academic mb-4 shadow-sm">
         <div class="container">
             <span class="navbar-brand mb-0 h1 text-white">
-                <i class="fa-solid fa-graduation-cap me-2"></i>Avaliação de Apresentações Acadêmicas
+                <i class="fa-solid fa-graduation-cap me-2"></i>Avaliação de Apresentações Acadêmicas (Nuvem)
             </span>
             <div class="d-flex" id="menu-navegacao">
                 <button class="btn btn-outline-light btn-sm me-2" onclick="switchView('professor')">
@@ -301,8 +301,8 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <script>
-        // CONFIGURAÇÃO MASTER DO GOOGLE SHEETS
-        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwdM6qz0oagcufYZIMMzAiUebza-89YJ-fafR5D0Lzw2gWAYAQdcfPGxkp8tCvjaK2q/exec";
+        // Substitua as aspas abaixo pela sua URL copiada do Apps Script do Google
+        const GOOGLE_SCRIPT_URL = "SUA_URL_AQUI_DO_PASSO_11";
 
         let dbGrupos = JSON.parse(localStorage.getItem('acad_grupos')) || [];
         let dbCriterios = JSON.parse(localStorage.getItem('acad_criterios')) || [];
@@ -488,16 +488,12 @@
         function retomarTimer() { isPausado = false; document.getElementById('btn-retomar').classList.add('d-none'); document.getElementById('btn-pausar').classList.remove('d-none'); }
         function finalizarApresentacao() { clearInterval(timerInterval); grupoAtivo = null; document.getElementById('sessao-ativa').classList.add('d-none'); document.getElementById('sessao-vazia').classList.remove('d-none'); renderListaGrupos(); }
 
-        // MÓDULO DO PROFESSOR: Baixa os dados direto do Google Sheets via API pública de leitura
         function baixarVotosDaNuvem() {
             if(!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes("SUA_URL_AQUI")) {
                 alert("Erro: Configure a URL do Google Script primeiro.");
                 return;
             }
-            // Transforma o link de POST em link de leitura de dados (GET JSON)
-            const urlLeitura = GOOGLE_SCRIPT_URL.replace("/exec", "/exec");
-            
-            fetch(urlLeitura + "?action=read")
+            fetch(GOOGLE_SCRIPT_URL + "?action=read")
             .then(res => res.json())
             .then(json => {
                 if(json && Array.isArray(json)) {
@@ -505,13 +501,12 @@
                     renderDashboard();
                     alert(`Sincronização concluída! ${dbAvaliacoes.length} avaliações baixadas da nuvem.`);
                 } else {
-                    // Fallback amigável caso o script web do Google ainda não tenha dados de retorno estruturados
-                    alert("Planilha acessada com sucesso! Aguardando a chegada das primeiras avaliações dos alunos.");
+                    alert("Planilha acessada com sucesso! Aguardando os primeiros votos.");
                 }
             })
             .catch(err => {
                 console.error(err);
-                alert("Aviso: Conexão estabelecida. Execute as primeiras avaliações para popular o banco de dados.");
+                alert("Aviso: Conexão estabelecida. Execute as primeiras avaliações para popular o banco.");
             });
         }
 
@@ -542,11 +537,10 @@
             }).join('');
         }
 
-        // MÓDULO DO ALUNO: Dispara os dados em segundo plano direto para o seu Sheets
         function enviarDadosNuvemAluno(e) {
             e.preventDefault();
             if(!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes("SUA_URL_AQUI")) {
-                alert("Erro: O sistema está em manutenção técnica. Avise o professor.");
+                alert("Erro: O sistema está em manutenção técnica.");
                 return;
             }
 
@@ -577,7 +571,6 @@
                 pontosMelhorias: document.getElementById('p-melhorias').value.trim()
             };
 
-            // Disparo assíncrono invisível via API Fetch (CORS Mode Bypass)
             fetch(GOOGLE_SCRIPT_URL, {
                 method: "POST",
                 mode: "no-cors", 
@@ -585,16 +578,13 @@
                 body: JSON.stringify(aval)
             })
             .then(() => {
-                // Como usamos no-cors para evitar bloqueios de segurança entre domínios, tratamos o sucesso de forma direta
                 document.getElementById('form-avaliacao').classList.add('d-none');
                 document.getElementById('aluno-sucesso').classList.remove('d-none');
-                
-                // Salva localmente também por redundância de segurança histórica
                 dbAvaliacoes.push(aval);
             })
             .catch(err => {
                 console.error(err);
-                alert("Erro ao conectar à nuvem. Verifique sua conexão de internet.");
+                alert("Erro ao conectar à nuvem. Verifique sua conexão.");
             })
             .finally(() => {
                 btn.innerHTML = '<i class="fa-solid fa-cloud-upload-alt me-2"></i>Enviar Minha Avaliação';
@@ -726,7 +716,7 @@
                     sMediasEscolares += mediaPonderadaDoCrit;
                 });
 
-                let totalPesos =面 criteriosConfig.reduce((acc, curr) => acc + curr.peso, 0);
+                let totalPesos = criteriosConfig.reduce((acc, curr) => acc + curr.peso, 0);
                 linhaResumo["Nota Final Ponderada (0-10)"] = parseFloat(((sMediasEscolares / totalPesos) * 10).toFixed(2));
                 dadosAba2.push(linhaResumo);
             });
