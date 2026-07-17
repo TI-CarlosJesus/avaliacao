@@ -162,7 +162,7 @@
             <!-- Lista de Grupos -->
             <h4 class="mb-3 text-muted">Lista de Grupos da Disciplina</h4>
             <div id="lista-grupos" class="row row-cols-1 row-cols-md-3 g-3 mb-5">
-                <div class="col-12 text-center text-muted py-4">Por favor, carregue a planilha mestre para iniciar.</div>
+                <div class="col-12 text-center text-muted py-4"><i class="fa-solid fa-folder-open me-2"></i>Por favor, carregue a planilha mestre para iniciar.</div>
             </div>
 
             <!-- Dashboard -->
@@ -306,7 +306,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <script>
-        // Correção de inicialização: Força a página a vir 100% vazia se não houver upload novo
         let dbGrupos = [];
         let dbCriterios = [];
         let dbAvaliacoes = []; 
@@ -316,7 +315,6 @@
         let isPausado = false;
         let chartInstance = null;
 
-        // Fallback estrutural básico inicial
         let criteriosConfig = [
             { id: 'c_1', dim: 'Equipe', label: 'Trabalho em Equipe', desc: 'Integração e cooperação mútua.', peso: 8 },
             { id: 'c_2', dim: 'Estrutura', label: 'Organização e Qualidade dos Slides', desc: 'Estrutura lógica e suporte visual.', peso: 8 },
@@ -347,7 +345,7 @@
                 const membrosGrupo = decodificarParametroSeguro(params.get('gMembros'));
 
                 document.getElementById('aluno-grupo-nome').value = `${nomeGrupo} [${temaGrupo}]`;
-                document.getElementById('aluno-grupo-integrantes').innerText = membrosGrupo;
+                document.getElementById('aluno-grupo-integrantes').innerText = membersGrupo;
 
                 if(params.has('gCrits')) {
                     try { criteriosConfig = JSON.parse(decodificarParametroSeguro(params.get('gCrits'))); } catch(e){ console.error(e); }
@@ -404,7 +402,7 @@
                     }
                 }
                 
-                dbAvaliacoes = []; // Reseta avaliações antigas ao subir nova planilha
+                dbAvaliacoes = []; // Limpeza de cache para nova planilha mestre
                 renderListaGrupos();
                 atualizarDropdownFiltro();
                 renderDashboard();
@@ -567,7 +565,7 @@
                 pontosMelhorias: document.getElementById('p-melhorias').value.trim()
             };
             
-            document.getElementById('token-generado').value = "ACAD-VOTE|" + JSON.stringify(aval);
+            document.getElementById('token-gerado').value = "ACAD-VOTE|" + JSON.stringify(aval);
             document.getElementById('form-avaliacao').classList.add('d-none');
             document.getElementById('aluno-sucesso').classList.remove('d-none');
         }
@@ -575,7 +573,6 @@
         function copiarTokenAluno() { const area = document.getElementById('token-gerado'); area.select(); navigator.clipboard.writeText(area.value); alert("Token Copiado!"); }
         function resgatarFormulario() { document.getElementById('form-avaliacao').reset(); document.getElementById('form-avaliacao').classList.remove('d-none'); document.getElementById('aluno-sucesso').classList.add('d-none'); }
 
-        // --- Dashboard ---
         function renderDashboard() {
             const totalTotal = dbAvaliacoes.length;
             if (totalTotal === 0) {
@@ -655,7 +652,6 @@
             `).join('');
         }
 
-        // --- EXPORTADOR DINÂMICO CORRIGIDO (Altera as colunas conforme os novos critérios da planilha) ---
         function exportarResultadosXLSX() {
             if (dbAvaliacoes.length === 0) return;
             const wb = XLSX.utils.book_new();
