@@ -125,7 +125,7 @@
                                         <div class="col-sm-7">
                                             <h4 id="ativo-nome" class="text-primary mb-1">Grupo 01</h4>
                                             <p id="ativo-tema" class="text-muted mb-1">Tema do Trabalho</p>
-                                            <p id="ativo-integrantes" class="text-secondary small mb-2"><strong>Integrantes:</strong> Carregando...</p>
+                                            <p id="ativo-integrantes" class="text-secondary small mb-2"><strong>Alunos:</strong> Carregando...</p>
                                             <div class="cronometro mb-2" id="cronometro">15:00</div>
                                             
                                             <div class="btn-group btn-group-sm me-2 mb-2">
@@ -238,8 +238,8 @@
                                     <label class="form-label fw-bold mb-1 text-primary"><i class="fa-solid fa-users me-1"></i> Grupo Sendo Avaliado</label>
                                     <input type="text" id="aluno-grupo-nome" class="form-control bg-white fw-bold text-secondary mb-2" readonly value="Nenhum grupo ativo">
                                     
-                                    <!-- Exibição dos Alunos Integrantes na tela de avaliação -->
-                                    <label class="form-label small fw-bold text-muted mb-0"><i class="fa-solid fa-id-card me-1"></i> Apresentadores:</label>
+                                    <!-- Exibição dos Alunos Integrantes na tela de avaliação padronizada para "Alunos:" -->
+                                    <label class="form-label small fw-bold text-muted mb-0"><i class="fa-solid fa-id-card me-1"></i> Alunos:</label>
                                     <div id="aluno-grupo-integrantes" class="small text-dark p-2 bg-white rounded border" style="min-height:30px;">-</div>
                                     
                                     <input type="hidden" id="aluno-grupo-id">
@@ -300,7 +300,6 @@
         let isPausado = false;
         let chartInstance = null;
 
-        // Critérios Padrão (Fallback caso o professor não importe uma lista própria)
         let criteriosConfig = [
             { id: 'c_1', label: 'Domínio do Assunto', desc: 'Demonstrou segurança e respondeu perguntas com precisão.' },
             { id: 'c_2', label: 'Clareza', desc: 'Apresentação linear, compreensível e articulada.' },
@@ -323,7 +322,6 @@
                 document.getElementById('aluno-grupo-nome').value = `${params.get('gNome')} [${params.get('gTema')}]`;
                 document.getElementById('aluno-grupo-integrantes').innerText = params.get('gMembros') ? decodeURIComponent(params.get('gMembros')) : "Carregados via sistema";
                 
-                // Se houver critérios customizados injetados dinamicamente via link
                 if(params.has('cCrit')) {
                     try {
                         criteriosConfig = JSON.parse(decodeURIComponent(params.get('cCrit')));
@@ -341,7 +339,7 @@
             document.getElementById(`view-${view}`).classList.remove('d-none');
         }
 
-        // --- Importador 1: Grupos ---
+        // --- Importador 1: Grupos (Corrigido para mapear Alunos ou Aluno) ---
         document.getElementById('upload-excel').addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
@@ -357,16 +355,17 @@
                     id: index + 1,
                     nome: item.Grupo || `Grupo ${index + 1}`,
                     tema: item.Tema || 'Tema não informado',
-                    integrantes: item.Integrantes || 'Não informados'
+                    // Mapeia flexivelmente Alunos, Aluno ou Integrantes da sua planilha Excel
+                    integrantes: item.Alunos || item.Aluno || item.Integrantes || 'Não informados'
                 }));
                 localStorage.setItem('acad_grupos', JSON.stringify(dbGrupos));
                 renderListaGrupos();
-                alert(`${dbGrupos.length} grupos carregados!`);
+                alert(`${dbGrupos.length} grupos carregados com sucesso!`);
             };
             reader.readAsArrayBuffer(file);
         });
 
-        // --- Importador 2: Critérios de Avaliação Customizados (Opcional) ---
+        // --- Importador 2: Critérios de Avaliação Customizados ---
         document.getElementById('upload-criterios').addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
@@ -383,8 +382,8 @@
                         label: item.Criterio,
                         desc: item.Descricao || 'Avalie o desempenho do grupo de 1 a 5 estrelas.'
                     }));
-                    alert(`Sucesso! ${criteriosConfig.length} critérios customizados foram definidos para esta aula.`);
-                    if(grupoAtivo) atualizarPainelAtivo(); // Atualiza o QR code para injetar novos critérios
+                    alert(`Sucesso! ${criteriosConfig.length} critérios customizados foram definidos.`);
+                    if(grupoAtivo) atualizarPainelAtivo();
                 } else {
                     alert('Erro: A planilha de critérios precisa conter pelo menos a coluna "Criterio".');
                 }
@@ -407,7 +406,7 @@
                                 <div>
                                     <h5 class="card-title text-primary fw-bold">${g.nome}</h5>
                                     <h6 class="card-subtitle mb-2 text-muted small"><strong>Tema:</strong> ${g.tema}</h6>
-                                    <p class="card-text text-secondary small"><strong>Membros:</strong> ${g.integrantes}</p>
+                                    <p class="card-text text-secondary small"><strong>Alunos:</strong> ${g.integrantes}</p>
                                 </div>
                                 <div class="mt-3">
                                     ${isAtivo 
@@ -441,14 +440,12 @@
 
             document.getElementById('ativo-nome').innerText = grupoAtivo.nome;
             document.getElementById('ativo-tema').innerText = grupoAtivo.tema;
-            document.getElementById('ativo-integrantes').innerHTML = `<strong>Integrantes:</strong> ${grupoAtivo.integrantes}`;
+            document.getElementById('ativo-integrantes').innerHTML = `<strong>Alunos:</strong> ${grupoAtivo.integrantes}`;
 
             const qrContainer = document.getElementById('qrcode');
             qrContainer.innerHTML = "";
             
             const urlBase = window.location.href.split('?')[0];
-            
-            // Injeta na URL dinamicamente o ID, Nome, Tema, Integrantes e os Critérios Ativos (Compactados)
             const urlFinal = `${urlBase}?gId=${grupoAtivo.id}&gNome=${encodeURIComponent(grupoAtivo.nome)}&gTema=${encodeURIComponent(grupoAtivo.tema)}&gMembros=${encodeURIComponent(grupoAtivo.integrantes)}&cCrit=${encodeURIComponent(JSON.stringify(criteriosConfig))}`;
             
             new QRCode(qrContainer, {
@@ -504,7 +501,7 @@
             alert(`Processamento Concluído!\n${inseridos} novos votos validados.\n${duplicados} votos duplicados descartados.`);
         }
 
-        // --- Aluno: Geração do Formulário Dinâmico ---
+        // --- Aluno: Geração do Formulário ---
         function renderCriteriosForm() {
             document.getElementById('container-criterios').innerHTML = criteriosConfig.map(c => `
                 <div class="mb-3 p-2 bg-light rounded border-start border-3 border-primary shadow-sm">
@@ -514,7 +511,7 @@
                             <span class="text-muted d-block" style="font-size:0.75rem; line-height: 1.1;">${c.desc}</span>
                         </div>
                         <div class="star-rating">
-                            <input type="radio" id="star-${c.id}-5" name="crit-${c.id}" value="5" required/><label false for="star-${c.id}-5" class="fa-solid fa-star"></label>
+                            <input type="radio" id="star-${c.id}-5" name="crit-${c.id}" value="5" required/><label for="star-${c.id}-5" class="fa-solid fa-star"></label>
                             <input type="radio" id="star-${c.id}-4" name="crit-${c.id}" value="4" /><label for="star-${c.id}-4" class="fa-solid fa-star"></label>
                             <input type="radio" id="star-${c.id}-3" name="crit-${c.id}" value="3" /><label for="star-${c.id}-3" class="fa-solid fa-star"></label>
                             <input type="radio" id="star-${c.id}-2" name="crit-${c.id}" value="2" /><label for="star-${c.id}-2" class="fa-solid fa-star"></label>
@@ -533,7 +530,6 @@
             const ra = document.getElementById('aluno-ra').value.trim();
             const nome = document.getElementById('aluno-nome').value.trim();
 
-            // Mapeia de forma dinâmica as notas de cada critério ativo
             const notasCapturadas = {};
             criteriosConfig.forEach(c => {
                 const elemento = document.querySelector(`input[name="crit-${c.id}"]:checked`);
@@ -571,7 +567,7 @@
             document.getElementById('aluno-sucesso').classList.add('d-none');
         }
 
-        // --- Dashboard Dinâmico ---
+        // --- Dashboard ---
         function renderDashboard() {
             const total = dbAvaliacoes.length;
             document.getElementById('dash-total-aval').innerText = total;
@@ -584,7 +580,6 @@
                 return;
             }
 
-            // Descobre todos os critérios dinâmicos que foram respondidos nos tokens
             const chavesCriterios = Object.keys(dbAvaliacoes[0].notas);
             const somas = {}; chavesCriterios.forEach(k => somas[k] = 0);
             
@@ -602,7 +597,6 @@
 
             document.getElementById('dash-media-geral').innerText = (somaGeralDasMedias / chavesCriterios.length).toFixed(1);
 
-            // Grupo Top
             const ranking = {};
             dbAvaliacoes.forEach(a => {
                 if(!ranking[a.grupo]) ranking[a.grupo] = { soma: 0, c: 0 };
@@ -617,7 +611,6 @@
             }
             document.getElementById('dash-grupo-top').innerText = topG;
 
-            // Chart.js adaptável aos critérios importados
             const ctx = document.getElementById('chartCriterios').getContext('2d');
             if (chartInstance) chartInstance.destroy();
             chartInstance = new Chart(ctx, {
@@ -639,13 +632,12 @@
             `).join('');
         }
 
-        // --- Exportador Excel Inteligente e Dinâmico ---
+        // --- Exportador Excel ---
         function exportarResultadosXLSX() {
             if (dbAvaliacoes.length === 0) { alert("Sem registros disponíveis."); return; }
             const wb = XLSX.utils.book_new();
             const chavesCriterios = Object.keys(dbAvaliacoes[0].notas);
 
-            // Aba 1: Lista Plana Adaptável
             const dadosAba1 = dbAvaliacoes.map(x => {
                 const linha = {
                     "RA": x.ra,
@@ -654,7 +646,6 @@
                     "Grupo": x.grupo,
                     "Tema": x.tema
                 };
-                // Adiciona os critérios reais como colunas individuais no Excel automaticamente
                 chavesCriterios.forEach(k => { linha[k] = x.notas[k]; });
                 linha["Pontos Fortes"] = x.pontosFortes;
                 linha["Pontos de Melhorias"] = x.pontosMelhorias;
@@ -662,7 +653,6 @@
             });
             XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dadosAba1), "Avaliações");
 
-            // Aba 2: Resumo Consolidado Adaptável
             const dadosAba2 = [];
             const listaGruposInstanciados = [...new Set(dbAvaliacoes.map(x => x.grupo))];
             
