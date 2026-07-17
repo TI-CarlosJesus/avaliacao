@@ -2,82 +2,107 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Avaliação Acadêmica</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Avaliação Acadêmica</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
     <style>
+        :root { --primary-color: #2c3e50; --secondary-color: #18bc9c; --bg-light: #f8f9fa; }
+        body { background-color: var(--bg-light); font-family: 'Segoe UI', sans-serif; color: #333; }
+        .navbar-academic { background-color: var(--primary-color); color: white; }
         .star-rating { direction: rtl; display: inline-flex; }
         .star-rating input { display: none; }
-        .star-rating label { color: #ddd; font-size: 1.5rem; padding: 0 0.1rem; cursor: pointer; }
+        .star-rating label { color: #ddd; font-size: 1.5rem; padding: 0 0.1rem; cursor: pointer; transition: color 0.2s; }
         .star-rating label:hover, .star-rating label:hover ~ label, .star-rating input:checked ~ label { color: #f39c12; }
+        .crit-num { font-size: 1.1rem; font-weight: 800; color: var(--primary-color); min-width: 30px; display: inline-block; }
     </style>
 </head>
 <body>
-    <div class="container mt-4">
-        <div id="view-professor">
-            <input type="file" id="upload-master" class="form-control mb-3">
-            <div id="lista-grupos"></div>
+    <nav class="navbar navbar-academic mb-4"><div class="container"><span class="navbar-brand text-white">Avaliação Acadêmica</span></div></nav>
+    <div class="container mb-5">
+        <div id="view-professor" class="view-section">
+            <div class="card p-3 mb-4">
+                <h5>Configuração</h5>
+                <input type="file" id="upload-master" class="form-control" accept=".xlsx, .xls">
+            </div>
+            <div id="lista-grupos" class="row g-3"></div>
+            <div id="dashboard-resultados" class="mt-5">
+                <h3>Dashboard</h3>
+                <canvas id="chartCriterios"></canvas>
+            </div>
         </div>
-        <div id="view-aluno" class="d-none">
-            <div id="container-criterios"></div>
-            <button class="btn btn-primary w-100" onclick="gerarTokenAluno()">Gerar Token</button>
+        <div id="view-aluno" class="view-section d-none">
+            <div class="card p-4">
+                <form id="form-avaliacao" onsubmit="gerarToken(event)">
+                    <div id="container-criterios"></div>
+                    <button type="submit" class="btn btn-primary w-100 mt-3">Gerar Token</button>
+                </form>
+                <textarea id="token-gerado" class="form-control mt-3" rows="3" readonly></textarea>
+            </div>
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        let criteriosConfig = [
-            { id: 'c_1', label: 'Trabalho em Equipe', peso: 8 },
-            { id: 'c_2', label: 'Qualidade dos Slides', peso: 8 }
-        ];
+        let dbGrupos = [], criteriosConfig = [], dbAvaliacoes = [];
+        let chartInstance = null;
 
         function renderCriteriosForm() {
             const container = document.getElementById('container-criterios');
             if(!container) return;
             container.innerHTML = criteriosConfig.map((c, index) => `
-                <div class="mb-3 border p-2">
-                    <strong>${index + 1}. ${c.label}</strong>
+                <div class="mb-3 p-2 bg-white rounded border-start border-3 border-primary shadow-sm">
+                    <span class="crit-num">${index + 1}.</span> <strong>${c.label}</strong>
                     <div class="star-rating">
-                        <input type="radio" id="s5-${c.id}" name="crit-${c.id}" value="5"><label for="s5-${c.id}" class="fa-solid fa-star"></label>
-                        <input type="radio" id="s4-${c.id}" name="crit-${c.id}" value="4"><label for="s4-${c.id}" class="fa-solid fa-star"></label>
-                        <input type="radio" id="s3-${c.id}" name="crit-${c.id}" value="3"><label for="s3-${c.id}" class="fa-solid fa-star"></label>
-                        <input type="radio" id="s2-${c.id}" name="crit-${c.id}" value="2"><label for="s2-${c.id}" class="fa-solid fa-star"></label>
-                        <input type="radio" id="s1-${c.id}" name="crit-${c.id}" value="1"><label for="s1-${c.id}" class="fa-solid fa-star"></label>
+                        ${[5,4,3,2,1].map(v => `<input type="radio" id="s${v}-${c.id}" name="crit-${c.id}" value="${v}" required><label for="s${v}-${c.id}" class="fa-solid fa-star"></label>`).join('')}
                     </div>
                 </div>
             `).join('');
         }
 
         document.getElementById('upload-master').addEventListener('change', (e) => {
-            const file = e.target.files[0];
             const reader = new FileReader();
             reader.onload = (evt) => {
                 const workbook = XLSX.read(new Uint8Array(evt.target.result), { type: 'array' });
-                // Lógica de leitura simplificada
+                
+                // Limpeza de cache para forçar atualização
+                localStorage.clear();
+                
                 const abaCrit = workbook.SheetNames.find(n => n.toLowerCase().includes('crit'));
                 if(abaCrit) {
                     const json = XLSX.utils.sheet_to_json(workbook.Sheets[abaCrit]);
                     criteriosConfig = json.map((item, idx) => ({
                         id: `c_${idx+1}`,
-                        label: item.Criterio || item.Critério,
+                        label: item.Criterio || item.Critério || 'Critério',
                         peso: item.Peso || 1
                     }));
                 }
+                
                 renderCriteriosForm();
-                alert("Critérios carregados: " + criteriosConfig.length);
+                alert("Configuração carregada com sucesso!");
             };
-            reader.readAsArrayBuffer(file);
+            reader.readAsArrayBuffer(e.target.files[0]);
         });
 
-        // Inicialização
-        document.addEventListener('DOMContentLoaded', renderCriteriosForm);
-        
-        // Correção de roteamento
+        function gerarToken(e) {
+            e.preventDefault();
+            const notas = {};
+            criteriosConfig.forEach(c => {
+                const checked = document.querySelector(`input[name="crit-${c.id}"]:checked`);
+                notas[c.id] = checked ? checked.value : 1;
+            });
+            document.getElementById('token-gerado').value = "ACAD-VOTE|" + JSON.stringify(notas);
+        }
+
+        // Roteamento inicial
         const params = new URLSearchParams(window.location.search);
         if(params.has('gId')) {
             document.getElementById('view-professor').classList.add('d-none');
             document.getElementById('view-aluno').classList.remove('d-none');
         }
+        renderCriteriosForm();
     </script>
 </body>
 </html>
