@@ -72,13 +72,9 @@
             <span class="navbar-brand mb-0 h1 text-white">
                 <i class="fa-solid fa-graduation-cap me-2"></i>Avaliação de Apresentações Acadêmicas
             </span>
-            <!-- Menu ocultado dinamicamente para o aluno -->
             <div class="d-flex" id="menu-navegacao">
                 <button class="btn btn-outline-light btn-sm me-2" onclick="switchView('professor')">
                     <i class="fa-solid fa-chalkboard-user me-1"></i>Painel Professor
-                </button>
-                <button class="btn btn-outline-light btn-sm" onclick="switchView('aluno')">
-                    <i class="fa-solid fa-user-graduate me-1"></i>Área do Aluno Teste
                 </button>
             </div>
         </div>
@@ -88,27 +84,36 @@
         <!-- VISÃO PROFESSOR -->
         <div id="view-professor" class="view-section">
             <div class="row g-4 mb-4">
+                <!-- Coluna 1: Configuração e Importação de Votos -->
                 <div class="col-md-4">
-                    <div class="card shadow-sm h-100">
-                        <div class="card-body d-flex flex-column justify-content-between">
-                            <div>
-                                <h5 class="card-title text-muted"><i class="fa-solid fa-file-import me-2"></i>1. Configurar Sessão</h5>
-                                <p class="small text-muted mb-2">Importe a aba <strong>Grupos</strong> (Grupo, Tema, Integrantes).</p>
-                                <input type="file" id="upload-excel" class="form-control form-control-sm mb-3" accept=".xlsx, .xls">
-                            </div>
-                            <div>
-                                <label class="form-label small fw-bold text-muted">Tempo da Apresentação (minutos):</label>
-                                <input type="number" id="tempo-definido" class="form-control form-control-sm text-center fw-bold text-primary" value="15" min="1">
-                            </div>
+                    <div class="card shadow-sm mb-3">
+                        <div class="card-body">
+                            <h5 class="card-title text-muted small fw-bold"><i class="fa-solid fa-file-import me-2"></i>1. CARREGAR GRUPOS</h5>
+                            <input type="file" id="upload-excel" class="form-control form-control-sm mb-2" accept=".xlsx, .xls">
+                            <label class="form-label small text-muted mb-0">Tempo da Apresentação (min):</label>
+                            <input type="number" id="tempo-definido" class="form-control form-control-sm text-center fw-bold text-primary" value="15" min="1">
+                        </div>
+                    </div>
+                    
+                    <div class="card shadow-sm bg-light border-start border-3 border-info">
+                        <div class="card-body">
+                            <h5 class="card-title text-info small fw-bold"><i class="fa-solid fa-clipboard-list me-2"></i>2. INJETAR VOTOS DA TURMA</h5>
+                            <p class="text-muted" style="font-size: 0.75rem;">Cole aqui todas as linhas de texto enviadas pelos alunos e clique em processar.</p>
+                            <textarea id="votos-brutos" class="form-control form-control-sm mb-2" rows="4" placeholder="Cole as linhas de tokens aqui..."></textarea>
+                            <button class="btn btn-info btn-sm w-100 text-white fw-bold" onclick="processarTokensProfessor()">
+                                <i class="fa-solid fa-gears me-1"></i>Processar Votos Recebidos
+                            </button>
                         </div>
                     </div>
                 </div>
+
+                <!-- Coluna 2: Sessão Ativa -->
                 <div class="col-md-8">
                     <div class="card shadow-sm h-100">
                         <div class="card-body d-flex flex-column justify-content-between">
                             <div>
-                                <h5 class="card-title text-muted"><i class="fa-solid fa-broadcast-tower me-2"></i>Sessão Ativa</h5>
-                                <div id="sessao-vazia" class="text-center py-3 text-muted">Nenhum grupo se apresentando no momento.</div>
+                                <h5 class="card-title text-muted small fw-bold"><i class="fa-solid fa-broadcast-tower me-2"></i>SESSÃO ATIVA</h5>
+                                <div id="sessao-vazia" class="text-center py-4 text-muted">Nenhum grupo se apresentando no momento. Escolha um grupo abaixo e clique em Iniciar.</div>
                                 <div id="sessao-ativa" class="d-none">
                                     <div class="row align-items-center">
                                         <div class="col-sm-7">
@@ -116,7 +121,6 @@
                                             <p id="ativo-tema" class="text-muted mb-2">Tema do Trabalho</p>
                                             <div class="cronometro mb-2" id="cronometro">15:00</div>
                                             
-                                            <!-- Controles de Tempo -->
                                             <div class="btn-group btn-group-sm me-2 mb-2">
                                                 <button class="btn btn-warning" id="btn-pausar" onclick="pausarTimer()">
                                                     <i class="fa-solid fa-pause me-1"></i>Pausar
@@ -127,7 +131,7 @@
                                             </div>
 
                                             <button class="btn btn-danger btn-sm mb-2" onclick="finalizarApresentacao()">
-                                                <i class="fa-solid fa-stop me-1"></i>Finalizar e Consolidar
+                                                <i class="fa-solid fa-stop me-1"></i>Finalizar Apresentação
                                             </button>
                                         </div>
                                         <div class="col-sm-5 text-center">
@@ -151,7 +155,7 @@
             </div>
 
             <!-- Dashboard de Resultados -->
-            <div id="dashboard-resultados" class="d-none">
+            <div id="dashboard-resultados">
                 <hr class="my-5">
                 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
                     <h3 class="text-secondary mb-0"><i class="fa-solid fa-chart-pie me-2"></i>Dashboard de Desempenho</h3>
@@ -176,7 +180,7 @@
                     <div class="col-md-4">
                         <div class="card bg-info text-white text-center p-3 shadow-sm">
                             <h2 id="dash-grupo-top">-</h2>
-                            <div>Grupo Melhor Avaliado</div>
+                            <div>Grupo Melhor Evaluado</div>
                         </div>
                     </div>
                 </div>
@@ -192,7 +196,7 @@
                     </div>
                     <div class="col-md-6">
                         <div class="card shadow-sm p-3 h-100">
-                            <h5>Feedbacks Construtivos (Últimos Comentários)</h5>
+                            <h5>Feedbacks Construtivos (Comentários)</h5>
                             <div id="dash-comentarios" class="overflow-y-auto mt-2" style="max-height: 240px;">
                                 <p class="text-muted small">Nenhum feedback em texto registrado.</p>
                             </div>
@@ -206,16 +210,23 @@
         <div id="view-aluno" class="view-section d-none">
             <div class="row justify-content-center">
                 <div class="col-md-6">
-                    <div class="card shadow-sm">
+                    <div class="card shadow-sm shadow">
                         <div class="card-header bg-dark text-white text-center py-3">
                             <h5 class="mb-0"><i class="fa-solid fa-pen-to-square me-2"></i>Ficha de Avaliação por Pares</h5>
                         </div>
                         <div class="card-body p-4">
-                            <div id="aluno-alerta-grupo" class="alert alert-warning text-center d-none">
-                                <strong>Atenção:</strong> Nenhum grupo ativo para avaliação no momento. Aguarde o comando do professor.
+                            <div id="aluno-sucesso" class="d-none text-center py-4">
+                                <i class="fa-solid fa-circle-check text-success fa-3x mb-3"></i>
+                                <h4 class="text-success">Avaliação Gerada!</h4>
+                                <p class="small text-muted">Para computar seu voto na planilha do professor, clique no botão abaixo para copiar o seu token de validação e cole no chat da aula ou grupo indicado.</p>
+                                <textarea id="token-gerado" class="form-control text-center font-monospace small mb-3 bg-light" readonly rows="3" style="font-size: 0.8rem;"></textarea>
+                                <button class="btn btn-success w-100 fw-bold py-2" onclick="copiarTokenAluno()">
+                                    <i class="fa-solid fa-copy me-2"></i>COPIAR TOKEN DE AVALIAÇÃO
+                                </button>
+                                <button class="btn btn-link btn-sm mt-3" onclick="resgatarFormulario()">Avaliar outro grupo</button>
                             </div>
 
-                            <form id="form-avaliacao" onsubmit="enviarAvaliacao(event)">
+                            <form id="form-avaliacao" onsubmit="gerarTokenAluno(event)">
                                 <div class="mb-3">
                                     <label class="form-label fw-bold">Grupo em Apresentação</label>
                                     <input type="text" id="aluno-grupo-nome" class="form-control bg-light fw-bold text-secondary" readonly value="Nenhum grupo ativo">
@@ -251,7 +262,7 @@
                                 </div>
 
                                 <button type="submit" class="btn btn-primary w-100 py-2 mt-3 fw-bold">
-                                    <i class="fa-solid fa-paper-plane me-2"></i>Enviar Minha Avaliação
+                                    <i class="fa-solid fa-key me-2"></i>Gerar Meu Token de Voto
                                 </button>
                             </form>
                         </div>
@@ -261,17 +272,16 @@
         </div>
     </div>
 
-    <!-- CDNs Obrigatórias -->
+    <!-- CDNs Requeridas -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <script>
-        // --- Armazenamento em Memória Ativa ---
         let dbGrupos = JSON.parse(localStorage.getItem('acad_grupos')) || [];
-        let dbAvaliacoes = JSON.parse(localStorage.getItem('acad_avaliacoes')) || [];
-        let grupoAtivo = JSON.parse(localStorage.getItem('acad_grupo_ativo')) || null;
+        let dbAvaliacoes = []; // Mantido limpo para consolidação em tempo real via injeção de tokens
+        let grupoAtivo = null;
         
         let timerInterval = null;
         let tempoRestante = 0; 
@@ -282,7 +292,7 @@
             { id: 'dominio', label: 'Domínio do Assunto', desc: 'Demonstrou segurança e respondeu perguntas com precisão.' },
             { id: 'clareza', label: 'Clareza', desc: 'Apresentação linear, compreensível e articulada.' },
             { id: 'organizacao', label: 'Organização', desc: 'Divisão clara de falas e postura integrada do grupo.' },
-            { id: 'slides', label: 'Qualidade os Slides', desc: 'Suporte visual limpo, legível e bem estruturado.' },
+            { id: 'slides', label: 'Qualidade dos Slides', desc: 'Suporte visual limpo, legível e bem estruturado.' },
             { id: 'tempo', label: 'Controle de Tempo', desc: 'Conclusão adequada dentro da janela estipulada.' }
         ];
 
@@ -292,18 +302,15 @@
             verificarModoAcesso();
         });
 
-        // Bloqueia navegação se detectar parâmetros de aluno na URL
         function verificarModoAcesso() {
             const params = new URLSearchParams(window.location.search);
             if (params.has('gId')) {
-                document.getElementById('menu-navegacao').classList.add('d-none'); // Esconde menu totalmente
+                document.getElementById('menu-navegacao').classList.add('d-none');
                 switchView('aluno');
                 document.getElementById('aluno-grupo-id').value = params.get('gId');
                 document.getElementById('aluno-grupo-nome').value = `${params.get('gNome')} [${params.get('gTema')}]`;
-                document.getElementById('aluno-alerta-grupo').classList.add('d-none');
             } else {
                 switchView('professor');
-                if(grupoAtivo) atualizarPainelAtivo();
                 renderDashboard();
             }
         }
@@ -313,7 +320,7 @@
             document.getElementById(`view-${view}`).classList.remove('d-none');
         }
 
-        // --- Professor: Configuração e Carga ---
+        // --- Professor: Mecanismos ---
         document.getElementById('upload-excel').addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
@@ -365,7 +372,7 @@
                                 </div>
                                 <div class="mt-3">
                                     ${isAtivo 
-                                        ? `<button class="btn btn-warning btn-sm w-100 disabled">Apresentando agora...</button>`
+                                        ? `<button class="btn btn-warning btn-sm w-100 disabled">Apresentando...</button>`
                                         : `<button class="btn btn-outline-primary btn-sm w-100" onclick="iniciarApresentacao(${g.id})"><i class="fa-solid fa-play me-1"></i>Iniciar</button>`
                                     }
                                 </div>
@@ -381,8 +388,6 @@
             if (!g) return;
 
             grupoAtivo = g;
-            localStorage.setItem('acad_grupo_ativo', JSON.stringify(grupoAtivo));
-            
             const minutosDefinidos = parseInt(document.getElementById('tempo-definido').value) || 15;
             tempoRestante = minutosDefinidos * 60;
             isPausado = false;
@@ -400,7 +405,6 @@
             document.getElementById('ativo-nome').innerText = grupoAtivo.nome;
             document.getElementById('ativo-tema').innerText = grupoAtivo.tema;
 
-            // Gerar URL Limpa Baseada no GitHub Pages
             const qrContainer = document.getElementById('qrcode');
             qrContainer.innerHTML = "";
             
@@ -417,16 +421,13 @@
             qrContainer.setAttribute('data-link', urlFinal);
         }
 
-        // --- Gerenciador do Cronômetro ---
         function dispararTimer() {
             clearInterval(timerInterval);
             exibirMascaraTempo();
-
             timerInterval = setInterval(() => {
                 if (!isPausado) {
                     tempoRestante--;
                     exibirMascaraTempo();
-
                     if (tempoRestante <= 0) {
                         clearInterval(timerInterval);
                         document.getElementById('cronometro').textContent = "TEMPO ESGOTADO";
@@ -441,43 +442,61 @@
             document.getElementById('cronometro').textContent = `${mins < 10 ? "0" + mins : mins}:${segs < 10 ? "0" + segs : segs}`;
         }
 
-        function pausarTimer() {
-            isPausado = true;
-            document.getElementById('btn-pausar').classList.add('d-none');
-            document.getElementById('btn-retomar').classList.remove('d-none');
-        }
-
-        function retomarTimer() {
-            isPausado = false;
-            document.getElementById('btn-retomar').classList.add('d-none');
-            document.getElementById('btn-pausar').classList.remove('d-none');
-        }
+        function pausarTimer() { isPausado = true; document.getElementById('btn-pausar').classList.add('d-none'); document.getElementById('btn-retomar').classList.remove('d-none'); }
+        function retomarTimer() { isPausado = false; document.getElementById('btn-retomar').classList.add('d-none'); document.getElementById('btn-pausar').classList.remove('d-none'); }
 
         function finalizarApresentacao() {
             clearInterval(timerInterval);
             grupoAtivo = null;
-            localStorage.removeItem('acad_grupo_ativo');
-            
             document.getElementById('sessao-ativa').classList.add('d-none');
             document.getElementById('sessao-vazia').classList.remove('d-none');
-            
             renderListaGrupos();
-            renderDashboard();
-            document.getElementById('dashboard-resultados').classList.remove('d-none');
-            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
         }
 
-        // --- Aluno: Interface de Notas ---
+        // --- Injeção Inteligente de Tokens ---
+        function processarTokensProfessor() {
+            const rawText = document.getElementById('votos-brutos').value.trim();
+            if(!rawText) { alert("Cole os tokens enviados pelos alunos primeiro."); return; }
+
+            const linhas = rawText.split('\n');
+            let inseridos = 0;
+            let duplicados = 0;
+
+            linhas.forEach(linha => {
+                if(!linha.startsWith("ACAD-VOTE|")) return;
+                try {
+                    const partes = linha.split('|');
+                    const jsonString = atob(partes[1]); // Decodifica Base64
+                    const obj = JSON.parse(jsonString);
+
+                    // Impede duplicidade de RA + Grupo
+                    const jaExiste = dbAvaliacoes.some(x => x.ra === obj.ra && x.grupoId === obj.grupoId);
+                    if(!jaExiste) {
+                        dbAvaliacoes.push(obj);
+                        inseridos++;
+                    } else {
+                        duplicados++;
+                    }
+                } catch(e) {
+                    console.error("Erro ao ler linha de voto:", e);
+                }
+            });
+
+            document.getElementById('votos-brutos').value = "";
+            renderDashboard();
+            alert(`Processamento Concluído!\n${inseridos} novos votos validados.\n${duplicados} votos duplicados descartados.`);
+        }
+
+        // --- Aluno: Geração do Token em Base64 ---
         function renderCriteriosForm() {
             document.getElementById('container-criterios').innerHTML = criteriosConfig.map(c => `
                 <div class="mb-3 p-2 bg-light rounded border-start border-3 border-primary shadow-sm">
                     <div class="d-flex justify-content-between align-items-center flex-wrap">
                         <div>
                             <label class="form-label mb-0 fw-bold small">${c.label}</label>
-                            <span class="text-muted text-xs d-block" style="font-size:0.75rem;">${c.desc}</span>
                         </div>
                         <div class="star-rating">
-                            <input type="radio" id="star-${c.id}-5" name="crit-${c.id}" value="5" required/><label false for="star-${c.id}-5" class="fa-solid fa-star"></label>
+                            <input type="radio" id="star-${c.id}-5" name="crit-${c.id}" value="5" required/><label for="star-${c.id}-5" class="fa-solid fa-star"></label>
                             <input type="radio" id="star-${c.id}-4" name="crit-${c.id}" value="4" /><label for="star-${c.id}-4" class="fa-solid fa-star"></label>
                             <input type="radio" id="star-${c.id}-3" name="crit-${c.id}" value="3" /><label for="star-${c.id}-3" class="fa-solid fa-star"></label>
                             <input type="radio" id="star-${c.id}-2" name="crit-${c.id}" value="2" /><label for="star-${c.id}-2" class="fa-solid fa-star"></label>
@@ -488,63 +507,70 @@
             `).join('');
         }
 
-        function enviarAvaliacao(e) {
+        function gerarTokenAluno(e) {
             e.preventDefault();
             const gId = document.getElementById('aluno-grupo-id').value;
+            const fullGrupoTexto = document.getElementById('aluno-grupo-nome').value;
             const email = document.getElementById('aluno-email').value.trim().toLowerCase();
             const ra = document.getElementById('aluno-ra').value.trim();
             const nome = document.getElementById('aluno-nome').value.trim();
 
-            if (!gId) { alert("Nenhum grupo ativo identificado."); return; }
-
-            // Bloqueio de duplicidade real
-            if (dbAvaliacoes.some(av => av.grupoId == gId && av.email === email)) {
-                alert("Sua avaliação para este grupo já foi registrada anteriormente!");
-                return;
-            }
-
-            const refGrupo = dbGrupos.find(x => x.id == gId) || { nome: "G-Desconhecido", tema: "T-Desconhecido" };
-
-            const novaAvaliacao = {
+            const avaliacaoEstrutura = {
                 ra: ra,
                 aluno: nome,
                 email: email,
                 grupoId: gId,
-                grupo: refGrupo.nome,
-                tema: refGrupo.tema,
+                grupo: fullGrupoTexto.split(' [')[0],
+                tema: fullGrupoTexto.includes('[') ? fullGrupoTexto.split('[')[1].replace(']', '') : 'Não informado',
                 dominio: parseInt(document.querySelector(`input[name="crit-dominio"]:checked`).value),
                 clareza: parseInt(document.querySelector(`input[name="crit-clareza"]:checked`).value),
                 organizacao: parseInt(document.querySelector(`input[name="crit-organizacao"]:checked`).value),
                 slides: parseInt(document.querySelector(`input[name="crit-slides"]:checked`).value),
                 tempo: parseInt(document.querySelector(`input[name="crit-tempo"]:checked`).value),
-                postura: 5, // Atributo legado exigido na estrutura
+                postura: 5,
                 pontosFortes: document.getElementById('p-fortes').value.trim(),
                 pontosMelhorias: document.getElementById('p-melhorias').value.trim()
             };
 
-            dbAvaliacoes.push(novaAvaliacao);
-            localStorage.setItem('acad_avaliacoes', JSON.stringify(dbAvaliacoes));
-
-            alert("Avaliação submetida com sucesso! Obrigado pela participação.");
-            document.getElementById('form-avaliacao').reset();
+            // Codifica em Base64 para gerar o token compacto de envio rápido
+            const tokenInjetavel = "ACAD-VOTE|" + btoa(unescape(encodeURIComponent(JSON.stringify(avaliacaoEstrutura))));
+            
+            document.getElementById('token-gerado').value = tokenInjetavel;
+            document.getElementById('form-avaliacao').classList.add('d-none');
+            document.getElementById('aluno-sucesso').classList.remove('d-none');
         }
 
-        // --- Processamento de Métricas (Dashboard) ---
+        function copiarTokenAluno() {
+            const areaText = document.getElementById('token-gerado');
+            areaText.select();
+            navigator.clipboard.writeText(areaText.value);
+            alert("Token Copiado! Agora cole no chat indicado pelo professor.");
+        }
+
+        function resgatarFormulario() {
+            document.getElementById('form-avaliacao').reset();
+            document.getElementById('form-avaliacao').classList.remove('d-none');
+            document.getElementById('aluno-sucesso').classList.add('d-none');
+        }
+
+        // --- Dashboard & Cálculos ---
         function renderDashboard() {
-            if (dbAvaliacoes.length === 0) {
-                document.getElementById('dashboard-resultados').classList.add('d-none');
+            const total = dbAvaliacoes.length;
+            document.getElementById('dash-total-aval').innerText = total;
+
+            if (total === 0) {
+                document.getElementById('dash-media-geral').innerText = "0.0";
+                document.getElementById('dash-grupo-top').innerText = "-";
+                document.getElementById('dash-comentarios').innerHTML = '<p class="text-muted small">Nenhum feedback em texto registrado.</p>';
+                if(chartInstance) chartInstance.destroy();
                 return;
             }
-
-            document.getElementById('dashboard-resultados').classList.remove('d-none');
-            document.getElementById('dash-total-aval').innerText = dbAvaliacoes.length;
             
             let sDom = 0, sCla = 0, sOrg = 0, sSli = 0, sTem = 0;
             dbAvaliacoes.forEach(a => {
                 sDom += a.dominio; sCla += a.clareza; sOrg += a.organizacao; sSli += a.slides; sTem += a.tempo;
             });
 
-            const total = dbAvaliacoes.length;
             const medDom = (sDom / total).toFixed(1);
             const medCla = (sCla / total).toFixed(1);
             const medOrg = (sOrg / total).toFixed(1);
@@ -553,7 +579,6 @@
 
             document.getElementById('dash-media-geral').innerText = ((parseFloat(medDom)+parseFloat(medCla)+parseFloat(medOrg)+parseFloat(medSli)+parseFloat(medTem))/5).toFixed(1);
 
-            // Calcular Melhor Grupo Cadastrado
             const ranking = {};
             dbAvaliacoes.forEach(a => {
                 if(!ranking[a.grupo]) ranking[a.grupo] = { pt: 0, c: 0 };
@@ -567,7 +592,6 @@
             }
             document.getElementById('dash-grupo-top').innerText = topG;
 
-            // Gráfico de Barras Chart.js
             const ctx = document.getElementById('chartCriterios').getContext('2d');
             if (chartInstance) chartInstance.destroy();
             chartInstance = new Chart(ctx, {
@@ -575,17 +599,14 @@
                 data: {
                     labels: ['Domínio', 'Clareza', 'Organização', 'Slides', 'Tempo'],
                     datasets: [{
-                        label: 'Médias da Turma',
+                        label: 'Médias Coletadas',
                         data: [medDom, medCla, medOrg, medSli, medTem],
-                        backgroundColor: 'rgba(24, 188, 156, 0.7)',
-                        borderColor: 'rgba(18, 143, 118, 1)',
-                        borderWidth: 1
+                        backgroundColor: '#18bc9c'
                     }]
                 },
                 options: { scales: { y: { min: 0, max: 5 } }, responsive: true, maintainAspectRatio: false }
             });
 
-            // Feed de Comentários
             const feed = document.getElementById('dash-comentarios');
             const filtrados = dbAvaliacoes.filter(x => x.pontosFortes || x.pontosMelhorias);
             if(filtrados.length === 0){
@@ -601,7 +622,7 @@
             }
         }
 
-        // --- Geração do arquivo XLSX unificado para OneDrive ---
+        // --- Exportador Excel definitivo para OneDrive ---
         function exportarResultadosXLSX() {
             if (dbAvaliacoes.length === 0) {
                 alert("Sem registros disponíveis para gerar relatório.");
@@ -610,7 +631,6 @@
 
             const wb = XLSX.utils.book_new();
 
-            // Aba 1: Avaliações Brutas (Estrutura Obrigatória de Saída)
             const abaAvaliacoes = dbAvaliacoes.map(x => ({
                 "RA": x.ra,
                 "Aluno": x.aluno,
@@ -627,13 +647,12 @@
             }));
             XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(abaAvaliacoes), "Avaliações");
 
-            // Aba 2: Resumo Gerencial
             const resumoCalculado = [];
             const listaGruposInstanciados = [...new Set(dbAvaliacoes.map(x => x.grupo))];
             
             listaGruposInstanciados.forEach(nomeG => {
                 const amostras = dbAvaliacoes.filter(x => x.grupo === nomeG);
-                const n = samples = amostras.length;
+                const n = amostras.length;
                 let d=0, c=0, o=0, s=0, t=0;
                 amostras.forEach(a => { d+=a.dominio; c+=a.clareza; o+=a.organizacao; s+=a.slides; t+=a.tempo; });
                 
