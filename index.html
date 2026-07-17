@@ -180,7 +180,7 @@
                     <div class="col-md-4">
                         <div class="card bg-info text-white text-center p-3 shadow-sm">
                             <h2 id="dash-grupo-top">-</h2>
-                            <div>Grupo Melhor Evaluado</div>
+                            <div>Grupo Melhor Avaliado</div>
                         </div>
                     </div>
                 </div>
@@ -273,14 +273,14 @@
     </div>
 
     <!-- CDNs Requeridas -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <script>
         let dbGrupos = JSON.parse(localStorage.getItem('acad_grupos')) || [];
-        let dbAvaliacoes = []; // Mantido limpo para consolidação em tempo real via injeção de tokens
+        let dbAvaliacoes = []; 
         let grupoAtivo = null;
         
         let timerInterval = null;
@@ -453,7 +453,7 @@
             renderListaGrupos();
         }
 
-        // --- Injeção Inteligente de Tokens ---
+        // --- Injeção de Tokens ---
         function processarTokensProfessor() {
             const rawText = document.getElementById('votos-brutos').value.trim();
             if(!rawText) { alert("Cole os tokens enviados pelos alunos primeiro."); return; }
@@ -465,11 +465,10 @@
             linhas.forEach(linha => {
                 if(!linha.startsWith("ACAD-VOTE|")) return;
                 try {
-                    const partes = linha.split('|');
-                    const jsonString = atob(partes[1]); // Decodifica Base64
+                    const partes = line = linha.split('|');
+                    const jsonString = atob(partes[1]); 
                     const obj = JSON.parse(jsonString);
 
-                    // Impede duplicidade de RA + Grupo
                     const jaExiste = dbAvaliacoes.some(x => x.ra === obj.ra && x.grupoId === obj.grupoId);
                     if(!jaExiste) {
                         dbAvaliacoes.push(obj);
@@ -478,7 +477,7 @@
                         duplicados++;
                     }
                 } catch(e) {
-                    console.error("Erro ao ler linha de voto:", e);
+                    console.error("Erro ao processar linha de voto:", e);
                 }
             });
 
@@ -487,7 +486,7 @@
             alert(`Processamento Concluído!\n${inseridos} novos votos validados.\n${duplicados} votos duplicados descartados.`);
         }
 
-        // --- Aluno: Geração do Token em Base64 ---
+        // --- Aluno: Geração do Token ---
         function renderCriteriosForm() {
             document.getElementById('container-criterios').innerHTML = criteriosConfig.map(c => `
                 <div class="mb-3 p-2 bg-light rounded border-start border-3 border-primary shadow-sm">
@@ -532,7 +531,6 @@
                 pontosMelhorias: document.getElementById('p-melhorias').value.trim()
             };
 
-            // Codifica em Base64 para gerar o token compacto de envio rápido
             const tokenInjetavel = "ACAD-VOTE|" + btoa(unescape(encodeURIComponent(JSON.stringify(avaliacaoEstrutura))));
             
             document.getElementById('token-gerado').value = tokenInjetavel;
@@ -553,7 +551,7 @@
             document.getElementById('aluno-sucesso').classList.add('d-none');
         }
 
-        // --- Dashboard & Cálculos ---
+        // --- Dashboard ---
         function renderDashboard() {
             const total = dbAvaliacoes.length;
             document.getElementById('dash-total-aval').innerText = total;
@@ -622,7 +620,7 @@
             }
         }
 
-        // --- Exportador Excel definitivo para OneDrive ---
+        // --- Exportador Excel definitivo com E-mail integrado ---
         function exportarResultadosXLSX() {
             if (dbAvaliacoes.length === 0) {
                 alert("Sem registros disponíveis para gerar relatório.");
@@ -631,9 +629,11 @@
 
             const wb = XLSX.utils.book_new();
 
+            // Adicionado coluna de "E-mail" mapeada diretamente da estrutura coletada do aluno
             const abaAvaliacoes = dbAvaliacoes.map(x => ({
                 "RA": x.ra,
                 "Aluno": x.aluno,
+                "E-mail": x.email,
                 "Grupo": x.grupo,
                 "Tema": x.tema,
                 "Domínio do assunto": x.dominio,
