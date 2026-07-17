@@ -96,7 +96,7 @@
                     <div class="card shadow-sm mb-3">
                         <div class="card-body">
                             <h5 class="card-title text-muted small fw-bold"><i class="fa-solid fa-file-import me-2"></i>1. CARREGAR CONFIGURAÇÃO</h5>
-                            <p class="text-muted mb-2" style="font-size: 0.75rem;">Selecione a planilha mestre contendo a aba <strong>Grupos</strong>.</p>
+                            <p class="text-muted mb-2" style="font-size: 0.75rem;">Selecione a planilha mestre contendo as abas <strong>Grupos</strong> e <strong>Critérios</strong>.</p>
                             
                             <input type="file" id="upload-master" class="form-control form-control-sm mb-3" accept=".xlsx, .xls">
                             
@@ -307,6 +307,7 @@
 
     <script>
         let dbGrupos = JSON.parse(localStorage.getItem('acad_grupos')) || [];
+        let dbCriterios = JSON.parse(localStorage.getItem('acad_criterios')) || [];
         let dbAvaliacoes = []; 
         let grupoAtivo = null;
         let timerInterval = null;
@@ -314,36 +315,25 @@
         let isPausado = false;
         let chartInstance = null;
 
-        const criteriosConfig = [
-            { id: 'c_1', dim: 'Equipe', label: 'Trabalho em Equipe', desc: 'Integração, sinergia e cooperação mútua entre os membros.', peso: 8 },
-            { id: 'c_2', dim: 'Estrutura', label: 'Organização e Qualidade dos Slides', desc: 'Estrutura lógica, design limpo, legibilidade e suporte visual.', peso: 8 },
-            { id: 'c_3', dim: 'Recursos', label: 'Uso de Recursos Audiovisuais', desc: 'Utilizou imagens, diagramas ou mídias de suporte adequadamente.', peso: 5 },
-            { id: 'c_4', dim: 'Conteúdo', label: 'Domínio do Assunto', desc: 'Demonstrou segurança jurídica/técnica e respondeu com precisão.', peso: 15 },
-            { id: 'c_5', dim: 'Conteúdo', label: 'Clareza', desc: 'Explicou os conceitos de forma compreensível e articulada.', peso: 10 },
-            { id: 'c_6', dim: 'Conteúdo', label: 'Objetividade', desc: 'Apresentação direta ao ponto, evitando redundâncias e desvios.', peso: 8 },
-            { id: 'c_7', dim: 'Conteúdo', label: 'Argumentação', desc: 'Defendeu pontos com raciocínio lógico estruturado.', peso: 10 },
-            { id: 'c_8', dim: 'Conteúdo', label: 'Uso de Evidências', desc: 'Fundamentação teórica, dados técnicos ou referências válidas.', peso: 10 },
-            { id: 'c_9', dim: 'Conteúdo', label: 'Conhecimento Prático', desc: 'Relacionou a teoria com aplicações práticas ou estudos de caso.', peso: 8 },
-            { id: 'c_10', dim: 'Conteúdo', label: 'Criatividade / Originalidade', desc: 'Apresentou abordagens inovadoras ou exemplos diferenciados.', peso: 5 },
-            { id: 'c_11', dim: 'Comunicação', label: 'Comunicação Verbal', desc: 'Utilizou tom de voz audível, boa dicção e vocabulário formal.', peso: 5 },
-            { id: 'c_12', dim: 'Comunicação', label: 'Postura Profissional', desc: 'Demonstrou ética, seriedade e linguagem corporal corporativa.', peso: 3 },
-            { id: 'c_13', dim: 'Estrutura', label: 'Conclusão e Fechamento', desc: 'Finalizou respondendo ao objetivo principal com síntese clara.', peso: 3 },
-            { id: 'c_14', dim: 'Estrutura', label: 'Controle do Tempo', desc: 'Concluiu a apresentação dentro da janela regulamentar informada.', peso: 2 }
+        // Fallback de segurança se carregar a primeira vez zerado
+        let padraoCriterios = [
+            { id: 'c_1', dim: 'Equipe', label: 'Trabalho em Equipe', desc: 'Integração e cooperação mútua.', peso: 8 },
+            { id: 'c_2', dim: 'Estrutura', label: 'Organização e Qualidade dos Slides', desc: 'Estrutura lógica e suporte visual.', peso: 8 },
+            { id: 'c_3', dim: 'Recursos', label: 'Uso de Recursos Audiovisuais', desc: 'Utilizou mídias de suporte adequadamente.', peso: 5 },
+            { id: 'c_4', dim: 'Conteúdo', label: 'Domínio do Assunto', desc: 'Demonstrou segurança e respondeu com precisão.', peso: 15 },
+            { id: 'c_5', dim: 'Conteúdo', label: 'Clareza', desc: 'Explicou os conceitos de forma compreensível.', peso: 10 }
         ];
+
+        let criteriosConfig = dbCriterios.length > 0 ? dbCriterios : padraoCriterios;
 
         document.addEventListener('DOMContentLoaded', () => {
             renderListaGrupos();
             verificarModoAcesso();
         });
 
-        // TRATAMENTO EXCLUSIVO DE URL: Limpa e decodifica qualquer acentuação corrompida passada via link ou chat
         function decodificarParametroSeguro(param) {
             if(!param) return "-";
-            try {
-                return decodeURIComponent(param.replace(/\+/g, " "));
-            } catch(e) {
-                try { return unescape(param); } catch(err) { return param; }
-            }
+            try { return decodeURIComponent(param.replace(/\+/g, " ")); } catch(e) { try { return unescape(param); } catch(err) { return param; } }
         }
 
         function verificarModoAcesso() {
@@ -353,16 +343,21 @@
                 switchView('aluno');
                 document.getElementById('aluno-grupo-id').value = params.get('gId');
                 
-                // Aplica a decodificação segura nos campos de texto
                 const nomeGrupo = decodificarParametroSeguro(params.get('gNome'));
                 const temaGrupo = decodificarParametroSeguro(params.get('gTema'));
                 const membrosGrupo = decodificarParametroSeguro(params.get('gMembros'));
 
                 document.getElementById('aluno-grupo-nome').value = `${nomeGrupo} [${temaGrupo}]`;
                 document.getElementById('aluno-grupo-integrantes').innerText = membrosGrupo;
+
+                // ATUALIZAÇÃO CRÍTICA: O aluno reconstrói os critérios dinâmicos enviados na URL de forma compactada
+                if(params.has('gCrits')) {
+                    try { criteriosConfig = JSON.parse(decodificarParametroSeguro(params.get('gCrits'))); } catch(e){ console.error(e); }
+                }
                 renderCriteriosForm();
             } else {
                 switchView('professor');
+                atualizarDropdownFiltro();
                 renderDashboard();
             }
         }
@@ -379,12 +374,11 @@
             reader.onload = (evt) => {
                 const data = new Uint8Array(evt.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
+                
+                // 1. IMPORTAÇÃO DE GRUPOS
                 const nomeAbaGrupos = workbook.SheetNames.find(n => n.toLowerCase().trim() === 'grupos' || n.toLowerCase().trim() === 'grupo');
                 if (!nomeAbaGrupos) { alert('Erro: O arquivo precisa conter a aba "Grupos".'); return; }
-                
-                const wsGrupos = workbook.Sheets[nomeAbaGrupos];
-                const jsonGrupos = XLSX.utils.sheet_to_json(wsGrupos);
-                
+                const jsonGrupos = XLSX.utils.sheet_to_json(workbook.Sheets[nomeAbaGrupos]);
                 dbGrupos = jsonGrupos.map((item, index) => {
                     const findKey = (arrNames) => {
                         const found = Object.keys(item).find(k => arrNames.includes(k.toLowerCase().trim()));
@@ -397,11 +391,28 @@
                         integrantes: findKey(['alunos', 'aluno', 'integrantes', 'membros']) || 'Não informados'
                     };
                 });
-                
                 localStorage.setItem('acad_grupos', JSON.stringify(dbGrupos));
+
+                // 2. IMPORTAÇÃO DINÂMICA DE CRITÉRIOS (Lê e atualiza os 5, 14 ou qualquer número de critérios na hora!)
+                const nomeAbaCrit = workbook.SheetNames.find(n => n.toLowerCase().trim() === 'critérios' || n.toLowerCase().trim() === 'criterios');
+                if (nomeAbaCrit) {
+                    const jsonCrit = XLSX.utils.sheet_to_json(workbook.Sheets[nomeAbaCrit]);
+                    if (jsonCrit.length > 0) {
+                        criteriosConfig = jsonCrit.map((item, idx) => ({
+                            id: `c_${idx + 1}`,
+                            dim: item.Dimensão || item.Dimensao || 'Geral',
+                            label: item.Criterio || item.Critério || `Critério ${idx + 1}`,
+                            desc: item.Descrição || item.Descricao || 'Avalie o desempenho.',
+                            peso: parseFloat(item.Peso) || 1
+                        }));
+                        localStorage.setItem('acad_criterios', JSON.stringify(criteriosConfig));
+                    }
+                }
+                
                 renderListaGrupos();
                 atualizarDropdownFiltro();
-                alert(`Configuração carregada!\n- ${dbGrupos.length} Grupos importados.`);
+                renderDashboard();
+                alert(`Sucesso!\n- ${dbGrupos.length} Grupos importados.\n- ${criteriosConfig.length} Critérios carregados do Excel.`);
             };
             reader.readAsArrayBuffer(file);
         });
@@ -435,10 +446,9 @@
 
         function atualizarDropdownFiltro() {
             const select = document.getElementById('filtro-trabalho-grafico');
+            if(!select) return;
             select.innerHTML = '<option value="GERAL">Média da Turma</option>';
-            dbGrupos.forEach(g => {
-                select.innerHTML += `<option value="${g.nome}">${g.nome}</option>`;
-            });
+            dbGrupos.forEach(g => { select.innerHTML += `<option value="${g.nome}">${g.nome}</option>`; });
         }
 
         function iniciarApresentacao(id) {
@@ -462,7 +472,9 @@
             const qrContainer = document.getElementById('qrcode');
             qrContainer.innerHTML = "";
             const urlBase = window.location.href.split('?')[0];
-            const urlFinal = `${urlBase}?gId=${grupoAtivo.id}&gNome=${encodeURIComponent(grupoAtivo.nome)}&gTema=${encodeURIComponent(grupoAtivo.tema)}&gMembros=${encodeURIComponent(grupoAtivo.integrantes)}`;
+            
+            // ATUALIZAÇÃO DO LINK MESTRE: Injeta os critérios ativos compactados no link para o celular do aluno se adaptar na hora!
+            const urlFinal = `${urlBase}?gId=${grupoAtivo.id}&gNome=${encodeURIComponent(grupoAtivo.nome)}&gTema=${encodeURIComponent(grupoAtivo.tema)}&gMembros=${encodeURIComponent(grupoAtivo.integrantes)}&gCrits=${encodeURIComponent(JSON.stringify(criteriosConfig))}`;
             
             new QRCode(qrContainer, { text: urlFinal, width: 130, height: 130, colorDark : "#2c3e50", colorLight : "#ffffff" });
             qrContainer.setAttribute('data-link', urlFinal);
@@ -502,23 +514,9 @@
                     } else { 
                         dup++; 
                     }
-                } catch(e) { 
-                    console.error("Erro no processamento:", e); 
-                }
+                } catch(e) { console.error("Erro no processamento:", e); }
             });
             document.getElementById('votos-brutos').value = "";
-            
-            const listaGruposVotados = [...new Set(dbAvaliacoes.map(x => x.grupo))];
-            const select = document.getElementById('filtro-trabalho-grafico');
-            const valSelecionadoAnteriormente = select.value;
-            select.innerHTML = '<option value="GERAL">Média da Turma</option>';
-            listaGruposVotados.forEach(gName => {
-                select.innerHTML += `<option value="${gName}">${gName}</option>`;
-            });
-            if([...select.options].some(o => o.value === valSelecionadoAnteriormente)) {
-                select.value = valSelecionadoAnteriormente;
-            }
-
             renderDashboard();
             alert(`Processamento Concluído! ${ins} válidos | ${dup} duplicados.`);
         }
@@ -575,7 +573,6 @@
                 pontosMelhorias: document.getElementById('p-melhorias').value.trim()
             };
             
-            // Geração em formato string-JSON limpa: Sem travar links ou anônimos!
             document.getElementById('token-gerado').value = "ACAD-VOTE|" + JSON.stringify(aval);
             document.getElementById('form-avaliacao').classList.add('d-none');
             document.getElementById('aluno-sucesso').classList.remove('d-none');
@@ -601,11 +598,7 @@
             const total = amostrasDashboard.length;
 
             document.getElementById('dash-total-aval').innerText = total;
-
-            if (total === 0) {
-                if(chartInstance) chartInstance.destroy();
-                return;
-            }
+            if (total === 0) { if(chartInstance) chartInstance.destroy(); return; }
 
             const labels = criteriosConfig.map(c => c.label);
             let somatorioNotasFinaisEscolares = 0;
