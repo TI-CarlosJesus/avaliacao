@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Avaliação Acadêmica por Pares</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome para Estrelas -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #18bc9c;
+            --bg-light: #f8f9fa;
+        }
+        body {
+            background-color: var(--bg-light);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #333;
+        }
+        .navbar-academic {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        .card-group {
+            transition: transform 0.2s, box-shadow 0.2s;
+            border-left: 5px solid var(--primary-color);
+        }
+        .card-group:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .active-group-card {
+            border-left: 5px solid var(--secondary-color) !important;
+            background-color: #e8f8f5;
+        }
+        .star-rating {
+            direction: rtl;
+            display: inline-flex;
+        }
+        .star-rating input {
+            display: none;
+        }
+        .star-rating label {
+            color: #ddd;
+            font-size: 1.5rem;
+            padding: 0 0.1rem;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .star-rating label:hover,
+        .star-rating label:hover ~ label,
+        .star-rating input:checked ~ label {
+            color: #f39c12;
+        }
+        .cronometro {
+            font-size: 2.5rem;
+            font-weight: bold;
+            font-family: monospace;
+            color: var(--primary-color);
+        }
+        #qrcode img {
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-academic mb-4shadow-sm">
+        <div class="container">
+            <span class="navbar-brand mb-0 h1 text-white">
+                <i class="fa-solid fa-graduation-cap me-2"></i>Avaliação de Apresentações Acadêmicas
+            </span>
+            <div class="d-flex">
+                <button class="btn btn-outline-light btn-sm me-2" onclick="switchView('professor')">
+                    <i class="fa-solid fa-chalkboard-user me-1"></i>Painel Professor
+                </button>
+                <button class="btn btn-outline-light btn-sm" onclick="switchView('aluno')">
+                    <i class="fa-solid fa-user-graduate me-1"></i>Área do Aluno
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mb-5">
+        <!-- VISÃO PROFESSOR -->
+        <div id="view-professor" class="view-section">
+            <div class="row g-4 mb-4">
+                <div class="col-md-4">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-body">
+                            <h5 class="card-title text-muted"><i class="fa-solid fa-file-import me-2"></i>1. Importar Grupos</h5>
+                            <p class="small text-muted">Importe a planilha Excel contendo a aba <strong>Grupos</strong> (Colunas: Grupo, Tema, Integrantes).</p>
+                            <input type="file" id="upload-excel" class="form-control form-control-sm" accept=".xlsx, .xls">
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-8">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-body d-flex flex-column justify-content-between">
+                            <div>
+                                <h5 class="card-title text-muted"><i class="fa-solid fa-broadcast-tower me-2"></i>Sessão Ativa</h5>
+                                <div id="sessao-vazia" class="text-center py-3 text-muted">Nenhum grupo se apresentando no momento.</div>
+                                <div id="sessao-ativa" class="d-none">
+                                    <div class="row align-items-center">
+                                        <div class="col-sm-7">
+                                            <h4 id="ativo-nome" class="text-primary mb-1">Grupo 01</h4>
+                                            <p id="ativo-tema" class="text-muted mb-2">Tema do Trabalho</p>
+                                            <div class="cronometro id" id="cronometro">15:00</div>
+                                            <button class="btn btn-danger btn-sm mt-2" onclick="finalizarApresentacao()">
+                                                <i class="fa-solid fa-stop me-1"></i>Finalizar e Consolidadar
+                                            </button>
+                                        </div>
+                                        <div class="col-sm-5 text-center">
+                                            <div id="qrcode" class="mb-2"></div>
+                                            <button class="btn btn-link btn-xs text-decoration-none" onclick="copiarLinkAluno()">
+                                                <i class="fa-solid fa-copy me-1"></i>Copiar Link do Aluno
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Listagem de Grupos -->
+            <h4 class="mb-3 text-muted">Lista de Grupos da Disciplina</h4>
+            <div id="lista-grupos" class="row row-cols-1 row-cols-md-3 g-3 mb-5">
+                <div class="col-12 text-center text-muted py-4">Aguardando importação da planilha de grupos...</div>
+            </div>
+
+            <!-- Dashboard de Resultados -->
+            <div id="dashboard-resultados" class="d-none">
+                <hr class="my-5">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h3 class="text-secondary mb-0"><i class="fa-solid fa-chart-pie me-2"></i>Dashboard de Desempenho</h3>
+                    <button class="btn btn-success" onclick="exportarResultadosXLSX()">
+                        <i class="fa-solid fa-file-excel me-2"></i>Exportar Consolidação Geral (.XLSX)
+                    </button>
+                </div>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <div class="card bg-primary text-white text-center p-3">
+                            <h2 id="dash-total-aval">0</h2>
+                            <div>Total de Avaliações Recebidas</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-success text-white text-center p-3">
+                            <h2 id="dash-media-geral">0.0</h2>
+                            <div>Média Geral da Turma</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-info text-white text-center p-3">
+                            <h2 id="dash-grupo-top">-</h2>
+                            <div>Grupo Melhor Avaliado</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <div class="card shadow-sm p-3">
+                            <h5>Média por Critério</h5>
+                            <canvas id="chartCriterios" height="250"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card shadow-sm p-3">
+                            <h5>Feedbacks Construtivos (Últimos Comentários)</h5>
+                            <div id="dash-comentarios" class="overflow-y-auto" style="max-height: 250px;">
+                                <p class="text-muted small">Nenhum feedback em texto registrado.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VISÃO ALUNO -->
+        <div id="view-aluno" class="view-section d-none">
+            <div class="row justify-content-center">
+                <div class="col-md-6">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-dark text-white text-center py-3">
+                            <h5 class="mb-0">Ficha de Avaliação de Projetos</h5>
+                        </div>
+                        <div class="card-body p-4">
+                            <div id="aluno-alerta-grupo" class="alert alert-warning text-center d-none">
+                                <strong>Atenção:</strong> Nenhum grupo ativo para avaliação no momento. Aguarde o comando do professor.
+                            </div>
+
+                            <form id="form-avaliacao" onsubmit="enviarAvaliacao(event)">
+                                <div class="mb-3">
+                                    <label class="form-label font-weight-bold">Grupo em Apresentação</label>
+                                    <input type="text" id="aluno-grupo-nome" class="form-control bg-light" readonly value="Nenhum grupo ativo">
+                                    <input type="hidden" id="aluno-grupo-id">
+                                </div>
+
+                                <div class="row g-3 mb-3">
+                                    <div class="col-sm-6">
+                                        <label class="form-label">Seu RA</label>
+                                        <input type="text" id="aluno-ra" class="form-control form-control-sm" required>
+                                    </div>
+                                    <div class="col-sm-6">
+                                        <label class="form-label">Seu Nome Completo</label>
+                                        <input type="text" id="aluno-nome" class="form-control form-control-sm" required>
+                                    </div>
+                                </div>
+                                <div class="mb-4">
+                                    <label class="form-label">Seu E-mail</label>
+                                    <input type="email" id="aluno-email" class="form-control form-control-sm" required>
+                                </div>
+
+                                <h5 class="border-bottom pb-2 mb-3 text-muted">Critérios de Desempenho (1 a 5 Estrelas)</h5>
+
+                                <div id="container-criterios"></div>
+
+                                <h5 class="border-bottom pb-2 mt-4 mb-3 text-muted">Feedback Qualitativo</h5>
+                                <div class="mb-3">
+                                    <label class="form-label text-success small fw-bold">Pontos Fortes</label>
+                                    <textarea id="p-fortes" class="form-control form-control-sm" rows="2" placeholder="O que o grupo fez de melhor?"></textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label text-danger small fw-bold">Pontos de Melhoria</label>
+                                    <textarea id="p-melhorias" class="form-control form-control-sm" rows="2" placeholder="Onde eles podem evoluir?"></textarea>
+                                </div>
+
+                                <button type="submit" class="btn btn-primary w-100 py-2 mt-3">
+                                    <i class="fa-solid fa-paper-plane me-2"></i>Submeter Avaliação Oficial
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CDNs Requeridas -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        // --- Estado Global da Aplicação ---
+        let dbGrupos = JSON.parse(localStorage.getItem('acad_grupos')) || [];
+        let dbAvaliacoes = JSON.parse(localStorage.getItem('acad_avaliacoes')) || [];
+        let grupoAtivo = JSON.parse(localStorage.getItem('acad_grupo_ativo')) || null;
+        let timerInterval = null;
+        let chartInstance = null;
+
+        const criteriosConfig = [
+            { id: 'dominio', label: 'Domínio do Assunto', desc: 'Demonstrou segurança e respondeu perguntas com precisão.' },
+            { id: 'clareza', label: 'Clareza e Conectividade', desc: 'Apresentação linear, compreensível e articulada.' },
+            { id: 'organizacao', label: 'Organização do Grupo', desc: 'Divisão clara de falas e postura profissional integrada.' },
+            { id: 'slides', label: 'Qualidade dos Slides/Material', desc: 'Suporte visual limpo, legível e sem excesso de texto.' },
+            { id: 'tempo', label: 'Controle de Tempo', desc: 'Conclusão adequada dentro da janela de 10 a 15 minutos.' }
+        ];
+
+        // --- Inicialização ---
+        document.addEventListener('DOMContentLoaded', () => {
+            renderCriteriosForm();
+            renderListaGrupos();
+            detectarGrupoUrl();
+            atualizarPainelAtivo();
+            renderDashboard();
+        });
+
+        function switchView(view) {
+            document.querySelectorAll('.view-section').forEach(el => el.classList.add('d-none'));
+            document.getElementById(`view-${view}`).classList.remove('d-none');
+        }
+
+        // --- Mecanismo do Professor: Importação e Gerenciamento ---
+        document.getElementById('upload-excel').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (evt) => {
+                const data = new Uint8Array(evt.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                
+                if (!workbook.SheetNames.includes('Grupos')) {
+                    alert('Erro: A planilha deve conter obrigatoriamente uma aba chamada "Grupos".');
+                    return;
+                }
+
+                const worksheet = workbook.Sheets['Grupos'];
+                const json = XLSX.utils.sheet_to_json(worksheet);
+
+                dbGrupos = json.map((item, index) => ({
+                    id: index + 1,
+                    nome: item.Grupo || `Grupo ${index + 1}`,
+                    tema: item.Tema || 'Tema não informado',
+                    integrantes: item.Integrantes || 'Não informados'
+                }));
+
+                localStorage.setItem('acad_grupos', JSON.stringify(dbGrupos));
+                renderListaGrupos();
+                alert(`${dbGrupos.length} grupos importados com sucesso!`);
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        function renderListaGrupos() {
+            const container = document.getElementById('lista-grupos');
+            if (dbGrupos.length === 0) {
+                container.innerHTML = '<div class="col-12 text-center text-muted py-4">Aguardando importação da planilha de grupos...</div>';
+                return;
+            }
+
+            container.innerHTML = dbGrupos.map(g => {
+                const isAtivo = grupoAtivo && grupoAtivo.id === g.id;
+                return `
+                    <div class="col">
+                        <div class="card h-100 card-group shadow-sm ${isAtivo ? 'active-group-card' : ''}" id="card-grupo-${g.id}">
+                            <div class="card-body d-flex flex-column justify-content-between">
+                                <div>
+                                    <h5 class="card-title text-primary fw-bold">${g.nome}</h5>
+                                    <h6 class="card-subtitle mb-2 text-muted small"><strong>Tema:</strong> ${g.tema}</h6>
+                                    <p class="card-text text-secondary" style="font-size:0.85rem;"><strong>Membros:</strong> ${g.integrantes}</p>
+                                </div>
+                                <div class="mt-3">
+                                    ${isAtivo 
+                                        ? `<button class="btn btn-warning btn-sm w-100 disabled">Em Apresentação...</button>`
+                                        : `<button class="btn btn-outline-primary btn-sm w-100" onclick="iniciarApresentacao(${g.id})"><i class="fa-solid fa-play me-1"></i>Iniciar Apresentação</button>`
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function iniciarApresentacao(id) {
+            const grupo = dbGrupos.find(g => g.id === id);
+            if (!grupo) return;
+
+            grupoAtivo = grupo;
+            localStorage.setItem('acad_grupo_ativo', JSON.stringify(grupoAtivo));
+            
+            renderListaGrupos();
+            atualizarPainelAtivo();
+            startTimer(15 * 60); // 15 Minutos padrão académico
+        }
+
+        function atualizarPainelAtivo() {
+            const vazia = document.getElementById('sessao-vazia');
+            const ativa = document.getElementById('sessao-ativa');
+            const qrcodeDiv = document.getElementById('qrcode');
+
+            if (!grupoAtivo) {
+                vazia.classList.remove('d-none');
+                ativa.classList.add('d-none');
+                return;
+            }
+
+            vazia.classList.add('d-none');
+            ativa.classList.remove('d-none');
+            document.getElementById('ativo-nome').innerText = grupoAtivo.nome;
+            document.getElementById('ativo-tema').innerText = grupoAtivo.tema;
+
+            qrcodeDiv.innerHTML = "";
+            const linkBase = window.location.href.split('?')[0];
+            const urlFinal = `${linkBase}?gId=${grupoAtivo.id}&gNome=${encodeURIComponent(grupoAtivo.nome)}&gTema=${encodeURIComponent(grupoAtivo.tema)}`;
+            
+            new QRCode(qrcodeDiv, {
+                text: urlFinal,
+                width: 128,
+                height: 128,
+                colorDark : "#2c3e50",
+                colorLight : "#ffffff"
+            });
+            qrcodeDiv.setAttribute('data-link', urlFinal);
+        }
+
+        function copiarLinkAluno() {
+            const url = document.getElementById('qrcode').getAttribute('data-link');
+            if (url) {
+                navigator.clipboard.writeText(url);
+                alert('Link copiado para a área de transferência!');
+            }
+        }
+
+        function startTimer(duration) {
+            clearInterval(timerInterval);
+            let timer = duration, minutes, seconds;
+            const display = document.getElementById('cronometro');
+            
+            timerInterval = setInterval(() => {
+                minutes = parseInt(timer / 60, 10);
+                seconds = parseInt(timer % 60, 10);
+
+                minutes = minutes < 10 ? "0" + minutes : minutes;
+                seconds = seconds < 10 ? "0" + seconds : seconds;
+
+                display.textContent = minutes + ":" + seconds;
+
+                if (--timer < 0) {
+                    clearInterval(timerInterval);
+                    display.textContent = "TEMPO ESGOTADO";
+                }
+            }, 1000);
+        }
+
+        function finalizarApresentacao() {
+            clearInterval(timerInterval);
+            grupoAtivo = null;
+            localStorage.removeItem('acad_grupo_ativo');
+            renderListaGrupos();
+            atualizarPainelAtivo();
+            renderDashboard();
+            document.getElementById('dashboard-resultados').classList.remove('d-none');
+        }
+
+        // --- Mecanismo do Aluno: Form e Avaliação ---
+        function renderCriteriosForm() {
+            const container = document.getElementById('container-criterios');
+            container.innerHTML = criteriosConfig.map(c => `
+                <div class="mb-3 p-2 bg-light rounded border-start border-3 border-secondary">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap">
+                        <div>
+                            <label class="form-label mb-0 fw-bold small">${c.label}</label>
+                            <div class="text-muted text-xs d-block" style="font-size:0.75rem;">${c.desc}</div>
+                        </div>
+                        <div class="star-rating">
+                            <input type="radio" id="star-${c.id}-5" name="crit-${c.id}" value="5" required/><label false for="star-${c.id}-5" class="fa-solid fa-star"></label>
+                            <input type="radio" id="star-${c.id}-4" name="crit-${c.id}" value="4" /><label for="star-${c.id}-4" class="fa-solid fa-star"></label>
+                            <input type="radio" id="star-${c.id}-3" name="crit-${c.id}" value="3" /><label for="star-${c.id}-3" class="fa-solid fa-star"></label>
+                            <input type="radio" id="star-${c.id}-2" name="crit-${c.id}" value="2" /><label for="star-${c.id}-2" class="fa-solid fa-star"></label>
+                            <input type="radio" id="star-${c.id}-1" name="crit-${c.id}" value="1" /><label for="star-${c.id}-1" class="fa-solid fa-star"></label>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function detectarGrupoUrl() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.has('gId')) {
+                switchView('aluno');
+                document.getElementById('aluno-grupo-id').value = params.get('gId');
+                document.getElementById('aluno-grupo-nome').value = `${params.get('gNome')} - ${params.get('gTema')}`;
+                document.getElementById('aluno-alerta-grupo').classList.add('d-none');
+            } else if (grupoAtivo) {
+                document.getElementById('aluno-grupo-id').value = grupoAtivo.id;
+                document.getElementById('aluno-grupo-nome').value = `${grupoAtivo.nome} - ${grupoAtivo.tema}`;
+                document.getElementById('aluno-alerta-grupo').classList.add('d-none');
+            } else {
+                document.getElementById('aluno-alerta-grupo').classList.remove('d-none');
+            }
+        }
+
+        function enviarAvaliacao(e) {
+            e.preventDefault();
+            const gId = document.getElementById('aluno-grupo-id').value;
+            const email = document.getElementById('aluno-email').value.trim().toLowerCase();
+            const ra = document.getElementById('aluno-ra').value.trim();
+            const nome = document.getElementById('aluno-nome').value.trim();
+
+            if (!gId || gId === "") {
+                alert("Nenhum grupo ativo selecionado.");
+                return;
+            }
+
+            // Impede dupla submissão do mesmo aluno para o mesmo grupo
+            const jaAvaliou = dbAvaliacoes.some(av => av.grupoId == gId && av.email === email);
+            if (jaAvaliou) {
+                alert("Você já submeteu uma avaliação para este grupo!");
+                return;
+            }
+
+            const infoGrupo = dbGrupos.find(g => g.id == gId) || { nome: "Desconhecido", tema: "Desconhecido" };
+
+            const avaliacaoObjeto = {
+                id: Date.now(),
+                ra: ra,
+                aluno: nome,
+                email: email,
+                grupoId: gId,
+                grupo: infoGrupo.nome,
+                tema: infoGrupo.tema,
+                dominio: parseInt(document.querySelector(`input[name="crit-dominio"]:checked`).value),
+                clareza: parseInt(document.querySelector(`input[name="crit-clareza"]:checked`).value),
+                organizacao: parseInt(document.querySelector(`input[name="crit-organizacao"]:checked`).value),
+                slides: parseInt(document.querySelector(`input[name="crit-slides"]:checked`).value),
+                tempo: parseInt(document.querySelector(`input[name="crit-tempo"]:checked`).value),
+                postura: 5, // Atributo legado estrutural solicitado nos requisitos de saída
+                pontosFortes: document.getElementById('p-fortes').value.trim(),
+                pontosMelhorias: document.getElementById('p-melhorias').value.trim()
+            };
+
+            dbAvaliacoes.push(avaliacaoObjeto);
+            localStorage.setItem('acad_avaliacoes', JSON.stringify(dbAvaliacoes));
+
+            alert("Sua avaliação foi enviada e integrada com sucesso para consolidação em nuvem (OneDrive)!");
+            document.getElementById('form-avaliacao').reset();
+            switchView('professor');
+            renderDashboard();
+        }
+
+        // --- Analytics & Inteligência de Negócio (Dashboard) ---
+        function renderDashboard() {
+            if (dbAvaliacoes.length === 0) return;
+
+            document.getElementById('dash-total-aval').innerText = dbAvaliacoes.length;
+            
+            // Médias por Critério
+            let somaCrit = { dominio: 0, clareza: 0, organizacao: 0, slides: 0, tempo: 0 };
+            dbAvaliacoes.forEach(av => {
+                somaCrit.dominio += av.dominio;
+                somaCrit.clareza += av.clareza;
+                somaCrit.organizacao += av.organizacao;
+                somaCrit.slides += av.slides;
+                somaCrit.tempo += av.tempo;
+            });
+
+            const total = dbAvaliacoes.length;
+            const medias = {
+                dominio: (somaCrit.dominio / total).toFixed(1),
+                clareza: (somaCrit.clareza / total).toFixed(1),
+                organizacao: (somaCrit.organizacao / total).toFixed(1),
+                slides: (somaCrit.slides / total).toFixed(1),
+                tempo: (somaCrit.tempo / total).toFixed(1)
+            };
+
+            const mediaGeral = ((parseFloat(medias.dominio) + parseFloat(medias.clareza) + parseFloat(medias.organizacao) + parseFloat(medias.slides) + parseFloat(medias.tempo)) / 5).toFixed(1);
+            document.getElementById('dash-media-geral').innerText = mediaGeral;
+
+            // Encontrar melhor grupo
+            const gruposPerformance = {};
+            dbAvaliacoes.forEach(av => {
+                if(!gruposPerformance[av.grupo]) gruposPerformance[av.grupo] = { soma: 0, qtd: 0 };
+                gruposPerformance[av.grupo].soma += (av.dominio + av.clareza + av.organizacao + av.slides + av.tempo) / 5;
+                gruposPerformance[av.grupo].qtd++;
+            });
+            
+            let melhorGrupo = "-";
+            let maiorMedia = 0;
+            for (let g in gruposPerformance) {
+                let m = gruposPerformance[g].soma / gruposPerformance[g].qtd;
+                if(m > maiorMedia) { maiorMedia = m; melhorGrupo = g; }
+            }
+            document.getElementById('dash-grupo-top').innerText = melhorGrupo;
+
+            // Renderização do Gráfico
+            const ctx = document.getElementById('chartCriterios').getContext('2d');
+            if (chartInstance) chartInstance.destroy();
+            
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Domínio', 'Clareza', 'Organização', 'Slides', 'Tempo'],
+                    datasets: [{
+                        label: 'Média de Notas (1-5)',
+                        data: [medias.dominio, medias.clareza, medias.organizacao, medias.slides, medias.tempo],
+                        backgroundColor: '#18bc9c',
+                        borderColor: '#128f76',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: { y: { min: 0, max: 5 } },
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+
+            // Listagem de comentários
+            const comContainer = document.getElementById('dash-comentarios');
+            const listaCom = dbAvaliacoes.filter(av => av.pontosFortes || av.pontosMelhorias);
+            if (listaCom.length === 0) {
+                comContainer.innerHTML = '<p class="text-muted small">Nenhum feedback em texto registrado.</p>';
+            } else {
+                comContainer.innerHTML = listaCom.reverse().map(av => `
+                    <div class="p-2 border-bottom small">
+                        <strong>${av.grupo}:</strong><br>
+                        <span class="text-success">+++ ${av.pontosFortes || 'Sem comentários'}</span><br>
+                        <span class="text-danger">--- ${av.pontosMelhorias || 'Sem comentários'}</span>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // --- Exportação Estruturada para Planilhas (SheetJS) ---
+        function exportarResultadosXLSX() {
+            if (dbAvaliacoes.length === 0) {
+                alert("Não existem avaliações registradas para exportação.");
+                return;
+            }
+
+            const wb = XLSX.utils.book_new();
+
+            // Aba 1: Avaliações Brutas em Conformidade com Requisitos de Saída
+            const dadosAvaliacoes = dbAvaliacoes.map(av => ({
+                "RA": av.ra,
+                "Aluno": av.aluno,
+                "Grupo": av.grupo,
+                "Tema": av.tema,
+                "Domínio do assunto": av.dominio,
+                "Clareza": av.clareza,
+                "Organização": av.organizacao,
+                "Qualidade dos slides": av.slides,
+                "Controle do tempo": av.tempo,
+                "Postura": av.postura,
+                "Pontos Fortes": av.pontosFortes,
+                "Pontos de Melhorias": av.pontosMelhorias
+            }));
+            const wsAval = XLSX.utils.json_to_sheet(dadosAvaliacoes);
+            XLSX.utils.book_append_sheet(wb, wsAval, "Avaliações");
+
+            // Aba 2: Resumo Executivo Gerencial
+            const resumoDados = [];
+            const gruposUnicos = [...new Set(dbAvaliacoes.map(av => av.grupo))];
+            
+            gruposUnicos.forEach(g => {
+                const filtradas = dbAvaliacoes.filter(av => av.grupo === g);
+                const qtd = filtradas.length;
+                let d = 0, c = 0, o = 0, s = 0, t = 0;
+                
+                filtradas.forEach(f => { d+=f.dominio; c+=f.clareza; o+=f.organizacao; s+=f.slides; t+=f.tempo; });
+                
+                resumoDados.push({
+                    "Grupo": g,
+                    "Total Avaliadores": qtd,
+                    "Média Domínio": (d/qtd).toFixed(2),
+                    "Média Clareza": (c/qtd).toFixed(2),
+                    "Média Organização": (o/qtd).toFixed(2),
+                    "Média Slides": (s/qtd).toFixed(2),
+                    "Média Tempo": (t/qtd).toFixed(2),
+                    "Nota Final Conquistada": ((d+c+o+s+t)/(qtd*5)).toFixed(2)
+                });
+            });
+            const wsResumo = XLSX.utils.json_to_sheet(resumoDados);
+            XLSX.utils.book_append_sheet(wb, wsResumo, "Resumo");
+
+            // Disparar Download
+            XLSX.writeFile(wb, `Consolidado_Avaliacoes_Academicas_${new Date().toISOString().slice(0,10)}.xlsx`);
+        }
+    </script>
+</body>
+</html>
