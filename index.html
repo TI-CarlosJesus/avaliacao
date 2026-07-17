@@ -2,110 +2,81 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Avaliação Acadêmica por Pares</title>
-    <!-- Bootstrap 5 CSS -->
+    <title>Avaliação Acadêmica</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- FontAwesome para Estrelas -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
     <style>
-        :root { --primary-color: #2c3e50; --secondary-color: #18bc9c; --bg-light: #f8f9fa; }
-        body { background-color: var(--bg-light); font-family: 'Segoe UI', sans-serif; color: #333; }
-        .navbar-academic { background-color: var(--primary-color); color: white; }
         .star-rating { direction: rtl; display: inline-flex; }
         .star-rating input { display: none; }
         .star-rating label { color: #ddd; font-size: 1.5rem; padding: 0 0.1rem; cursor: pointer; }
         .star-rating label:hover, .star-rating label:hover ~ label, .star-rating input:checked ~ label { color: #f39c12; }
-        .crit-num { font-size: 1.1rem; font-weight: 800; color: var(--primary-color); min-width: 25px; display: inline-block; }
     </style>
 </head>
 <body>
-
-    <nav class="navbar navbar-academic mb-4 shadow-sm">
-        <div class="container"><span class="navbar-brand mb-0 h1 text-white">Avaliação Acadêmica</span></div>
-    </nav>
-
-    <div class="container mb-5">
-        <!-- VISÃO PROFESSOR -->
-        <div id="view-professor" class="view-section">
-            <div class="card shadow-sm mb-4">
-                <div class="card-body">
-                    <h5>Configuração</h5>
-                    <input type="file" id="upload-master" class="form-control" accept=".xlsx, .xls">
-                </div>
-            </div>
-            <h4 class="mb-3">Lista de Grupos</h4>
-            <div id="lista-grupos" class="row g-3"></div>
+    <div class="container mt-4">
+        <div id="view-professor">
+            <input type="file" id="upload-master" class="form-control mb-3">
+            <div id="lista-grupos"></div>
         </div>
-
-        <!-- VISÃO ALUNO -->
-        <div id="view-aluno" class="view-section d-none">
-            <div class="row justify-content-center">
-                <div class="col-md-6">
-                    <div class="card shadow">
-                        <div class="card-body p-4">
-                            <form id="form-avaliacao" onsubmit="gerarTokenAluno(event)">
-                                <h5 class="mb-3">Critérios de Avaliação</h5>
-                                <div id="container-criterios"></div>
-                                <button type="submit" class="btn btn-primary w-100 mt-3">Gerar Token</button>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <div id="view-aluno" class="d-none">
+            <div id="container-criterios"></div>
+            <button class="btn btn-primary w-100" onclick="gerarTokenAluno()">Gerar Token</button>
         </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script>
-        // Critérios padrão caso não haja planilha
         let criteriosConfig = [
-            { id: 'c_1', dim: 'Equipe', label: 'Trabalho em Equipe', desc: 'Integração e cooperação.', peso: 8 },
-            { id: 'c_2', dim: 'Estrutura', label: 'Qualidade dos Slides', desc: 'Estrutura lógica.', peso: 8 }
+            { id: 'c_1', label: 'Trabalho em Equipe', peso: 8 },
+            { id: 'c_2', label: 'Qualidade dos Slides', peso: 8 }
         ];
-
-        document.addEventListener('DOMContentLoaded', () => {
-            // Garante que renderiza mesmo vazio
-            renderCriteriosForm(); 
-            // Se estiver na visão aluno, não precisa renderizar grupos
-            if(document.getElementById('view-aluno').classList.contains('d-none') == false) {
-                 // lógica de modo aluno
-            }
-        });
 
         function renderCriteriosForm() {
             const container = document.getElementById('container-criterios');
-            if (!container) return;
+            if(!container) return;
             container.innerHTML = criteriosConfig.map((c, index) => `
-                <div class="mb-3 p-2 bg-white rounded border shadow-sm">
-                    <span class="crit-num">${index + 1}.</span> <strong>${c.label}</strong>
+                <div class="mb-3 border p-2">
+                    <strong>${index + 1}. ${c.label}</strong>
                     <div class="star-rating">
-                        <input type="radio" id="s5-${c.id}" name="crit-${c.id}" value="5" required/><label for="s5-${c.id}" class="fa-solid fa-star"></label>
-                        <input type="radio" id="s4-${c.id}" name="crit-${c.id}" value="4" /><label for="s4-${c.id}" class="fa-solid fa-star"></label>
-                        <input type="radio" id="s3-${c.id}" name="crit-${c.id}" value="3" /><label for="s3-${c.id}" class="fa-solid fa-star"></label>
-                        <input type="radio" id="s2-${c.id}" name="crit-${c.id}" value="2" /><label for="s2-${c.id}" class="fa-solid fa-star"></label>
-                        <input type="radio" id="s1-${c.id}" name="crit-${c.id}" value="1" /><label for="s1-${c.id}" class="fa-solid fa-star"></label>
+                        <input type="radio" id="s5-${c.id}" name="crit-${c.id}" value="5"><label for="s5-${c.id}" class="fa-solid fa-star"></label>
+                        <input type="radio" id="s4-${c.id}" name="crit-${c.id}" value="4"><label for="s4-${c.id}" class="fa-solid fa-star"></label>
+                        <input type="radio" id="s3-${c.id}" name="crit-${c.id}" value="3"><label for="s3-${c.id}" class="fa-solid fa-star"></label>
+                        <input type="radio" id="s2-${c.id}" name="crit-${c.id}" value="2"><label for="s2-${c.id}" class="fa-solid fa-star"></label>
+                        <input type="radio" id="s1-${c.id}" name="crit-${c.id}" value="1"><label for="s1-${c.id}" class="fa-solid fa-star"></label>
                     </div>
                 </div>
             `).join('');
         }
 
-        // Função de upload que agora força a re-renderização
         document.getElementById('upload-master').addEventListener('change', (e) => {
             const file = e.target.files[0];
             const reader = new FileReader();
             reader.onload = (evt) => {
                 const workbook = XLSX.read(new Uint8Array(evt.target.result), { type: 'array' });
-                // ... lógica de ler aba critérios ...
-                renderCriteriosForm(); // <--- FORÇA A ATUALIZAÇÃO VISUAL
-                alert("Critérios atualizados!");
+                // Lógica de leitura simplificada
+                const abaCrit = workbook.SheetNames.find(n => n.toLowerCase().includes('crit'));
+                if(abaCrit) {
+                    const json = XLSX.utils.sheet_to_json(workbook.Sheets[abaCrit]);
+                    criteriosConfig = json.map((item, idx) => ({
+                        id: `c_${idx+1}`,
+                        label: item.Criterio || item.Critério,
+                        peso: item.Peso || 1
+                    }));
+                }
+                renderCriteriosForm();
+                alert("Critérios carregados: " + criteriosConfig.length);
             };
             reader.readAsArrayBuffer(file);
         });
 
-        function switchView(view) {
-            document.querySelectorAll('.view-section').forEach(el => el.classList.add('d-none'));
-            document.getElementById(`view-${view}`).classList.remove('d-none');
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', renderCriteriosForm);
+        
+        // Correção de roteamento
+        const params = new URLSearchParams(window.location.search);
+        if(params.has('gId')) {
+            document.getElementById('view-professor').classList.add('d-none');
+            document.getElementById('view-aluno').classList.remove('d-none');
         }
     </script>
 </body>
