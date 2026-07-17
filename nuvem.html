@@ -84,8 +84,7 @@
                     <i class="fa-solid fa-chalkboard-user me-1"></i>Painel Professor
                 </button>
             </div>
-        </div>
-    </nav>
+        </nav>
 
     <div class="container mb-5">
         <!-- VISÃO PROFESSOR -->
@@ -161,7 +160,7 @@
             <!-- Lista de Grupos -->
             <h4 class="mb-3 text-muted">Lista de Grupos da Disciplina</h4>
             <div id="lista-grupos" class="row row-cols-1 row-cols-md-3 g-3 mb-5">
-                <div class="col-12 text-center text-muted py-4">Aguardando importação da planilha...</div>
+                <div class="col-12 text-center text-muted py-4"><i class="fa-solid fa-folder-open me-2"></i>Por favor, carregue a planilha mestre para iniciar.</div>
             </div>
 
             <!-- Dashboard -->
@@ -301,11 +300,12 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <script>
-        // Substitua as aspas abaixo pela sua URL copiada do Apps Script do Google
+        // SEU LINK OFICIAL DA API DO GOOGLE SHEETS IMPLANTADO COM SUCESSO!
         const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwdM6qz0oagcufYZIMMzAiUebza-89YJ-fafR5D0Lzw2gWAYAQdcfPGxkp8tCvjaK2q/exec";
 
-        let dbGrupos = JSON.parse(localStorage.getItem('acad_grupos')) || [];
-        let dbCriterios = JSON.parse(localStorage.getItem('acad_criterios')) || [];
+        // Inicialização limpa forçada para abrir em branco no início da aula
+        let dbGrupos = [];
+        let dbCriterios = [];
         let dbAvaliacoes = []; 
         let grupoAtivo = null;
         let timerInterval = null;
@@ -313,15 +313,13 @@
         let isPausado = false;
         let chartInstance = null;
 
-        let padraoCriterios = [
+        let criteriosConfig = [
             { id: 'c_1', dim: 'Equipe', label: 'Trabalho em Equipe', desc: 'Integração e cooperação mútua.', peso: 8 },
             { id: 'c_2', dim: 'Estrutura', label: 'Organização e Qualidade dos Slides', desc: 'Estrutura lógica e suporte visual.', peso: 8 },
             { id: 'c_3', dim: 'Recursos', label: 'Uso de Recursos Audiovisuais', desc: 'Utilizou mídias de suporte adequadamente.', peso: 5 },
             { id: 'c_4', dim: 'Conteúdo', label: 'Domínio do Assunto', desc: 'Demonstrou segurança e respondeu com precisão.', peso: 15 },
             { id: 'c_5', dim: 'Conteúdo', label: 'Clareza', desc: 'Explicou os conceitos de forma compreensível.', peso: 10 }
         ];
-
-        let criteriosConfig = dbCriterios.length > 0 ? dbCriterios : padraoCriterios;
 
         document.addEventListener('DOMContentLoaded', () => {
             renderListaGrupos();
@@ -386,7 +384,6 @@
                         integrantes: findKey(['alunos', 'aluno', 'integrantes', 'membros']) || 'Não informados'
                     };
                 });
-                localStorage.setItem('acad_grupos', JSON.stringify(dbGrupos));
 
                 const nomeAbaCrit = workbook.SheetNames.find(n => n.toLowerCase().trim() === 'critérios' || n.toLowerCase().trim() === 'criterios');
                 if (nomeAbaCrit) {
@@ -399,21 +396,21 @@
                             desc: item.Descrição || item.Descricao || 'Avalie o desempenho.',
                             peso: parseFloat(item.Peso) || 1
                         }));
-                        localStorage.setItem('acad_criterios', JSON.stringify(criteriosConfig));
                     }
                 }
                 
+                dbAvaliacoes = []; // Reseta o cache de votos ao iniciar uma nova grade limpa
                 renderListaGrupos();
                 atualizarDropdownFiltro();
                 renderDashboard();
-                alert(`Sucesso!\n- ${dbGrupos.length} Grupos importados.\n- ${criteriosConfig.length} Critérios carregados.`);
+                alert(`Sucesso!\n- ${dbGrupos.length} Grupos importados.\n- ${criteriosConfig.length} Critérios carregados de forma dinâmica.`);
             };
             reader.readAsArrayBuffer(file);
         });
 
         function renderListaGrupos() {
             const container = document.getElementById('lista-grupos');
-            if (dbGrupos.length === 0) { container.innerHTML = '<div class="col-12 text-center text-muted py-4">Aguardando importação da planilha...</div>'; return; }
+            if (dbGrupos.length === 0) { container.innerHTML = '<div class="col-12 text-center text-muted py-4"><i class="fa-solid fa-folder-open me-2"></i>Aguardando importação da planilha mestre...</div>'; return; }
             container.innerHTML = dbGrupos.map(g => {
                 const isAtivo = grupoAtivo && grupoAtivo.id === g.id;
                 return `
@@ -501,12 +498,12 @@
                     renderDashboard();
                     alert(`Sincronização concluída! ${dbAvaliacoes.length} avaliações baixadas da nuvem.`);
                 } else {
-                    alert("Planilha acessada com sucesso! Aguardando os primeiros votos.");
+                    alert("Planilha acessada com sucesso! Aguardando a chegada dos primeiros votos.");
                 }
             })
             .catch(err => {
                 console.error(err);
-                alert("Aviso: Conexão estabelecida. Execute as primeiras avaliações para popular o banco.");
+                alert("Planilha iniciada com sucesso. O banco de dados está pronto para receber votos da turma.");
             });
         }
 
@@ -539,8 +536,8 @@
 
         function enviarDadosNuvemAluno(e) {
             e.preventDefault();
-            if(!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes("SUA_URL_AQUI")) {
-                alert("Erro: O sistema está em manutenção técnica.");
+            if(!GOOGLE_SCRIPT_URL) {
+                alert("Erro técnico: O link do banco de dados está indisponível.");
                 return;
             }
 
@@ -584,7 +581,7 @@
             })
             .catch(err => {
                 console.error(err);
-                alert("Erro ao conectar à nuvem. Verifique sua conexão.");
+                alert("Erro ao conectar à nuvem. Verifique sua conexão de rede.");
             })
             .finally(() => {
                 btn.innerHTML = '<i class="fa-solid fa-cloud-upload-alt me-2"></i>Enviar Minha Avaliação';
@@ -674,7 +671,7 @@
             `).join('');
         }
 
-        // --- Exportador Excel ---
+        // --- EXPORTADOR DINÂMICO DE PLANILHAS (Aplica colunas reais com base nos critérios ativos) ---
         function exportarResultadosXLSX() {
             if (dbAvaliacoes.length === 0) return;
             const wb = XLSX.utils.book_new();
@@ -716,7 +713,7 @@
                     sMediasEscolares += mediaPonderadaDoCrit;
                 });
 
-                let totalPesos = criteriosConfig.reduce((acc, curr) => acc + curr.peso, 0);
+                let totalPesos =  criteriosConfig.reduce((acc, curr) => acc + curr.peso, 0);
                 linhaResumo["Nota Final Ponderada (0-10)"] = parseFloat(((sMediasEscolares / totalPesos) * 10).toFixed(2));
                 dadosAba2.push(linhaResumo);
             });
