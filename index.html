@@ -192,7 +192,7 @@
                 <div class="row g-4">
                     <div class="col-md-6">
                         <div class="card shadow-sm p-3 h-100">
-                            <h5>Média Ponderada por Critério (Pontos Reais)</h5>
+                            <h5>Média de Pontos por Critério</h5>
                             <div style="position: relative; height:250px; width:100%">
                                 <canvas id="chartCriterios"></canvas>
                             </div>
@@ -221,7 +221,7 @@
                 <div class="col-md-6">
                     <div class="card shadow-sm shadow">
                         <div class="card-header bg-dark text-white text-center py-3">
-                            <h5 class="mb-0"><i class="fa-solid fa-pen-to-square me-2"></i>Ficha de Evaluation por Pares</h5>
+                            <h5 class="mb-0"><i class="fa-solid fa-pen-to-square me-2"></i>Ficha de Avaliação por Pares</h5>
                         </div>
                         <div class="card-body p-4">
                             <div id="aluno-sucesso" class="d-none text-center py-4">
@@ -348,7 +348,6 @@
             reader.onload = (evt) => {
                 const data = new Uint8Array(evt.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
-                
                 const nomeAbaGrupos = workbook.SheetNames.find(n => n.toLowerCase().trim() === 'grupos' || n.toLowerCase().trim() === 'grupo');
                 if (!nomeAbaGrupos) { alert('Erro: O arquivo precisa conter a aba "Grupos".'); return; }
                 
@@ -360,7 +359,6 @@
                         const found = Object.keys(item).find(k => arrNames.includes(k.toLowerCase().trim()));
                         return found ? item[found] : null;
                     };
-
                     return {
                         id: index + 1,
                         nome: findKey(['grupo', 'gId']) || `Grupo ${index + 1}`,
@@ -451,7 +449,8 @@
             linhas.forEach(l => {
                 if(!l.startsWith("ACAD-VOTE|")) return;
                 try {
-                    const json = JSON.parse(atob(l.split('|')[1]));
+                    // Decodificação segura tratando caracteres UTF-8
+                    const json = JSON.parse(decodeURIComponent(escape(atob(l.split('|')[1]))));
                     if(!dbAvaliacoes.some(x => x.ra === json.ra && x.grupoId === json.grupoId)) { dbAvaliacoes.push(json); ins++; } else { dup++; }
                 } catch(e) { console.error(e); }
             });
@@ -491,11 +490,11 @@
             const ra = document.getElementById('aluno-ra').value.trim();
             const nome = document.getElementById('aluno-nome').value.trim();
 
-            const estrelasDadas = {};
+            const notasVotadasPorId = {};
             criteriosConfig.forEach(c => {
                 const el = document.querySelector(`input[name="crit-${c.id}"]:checked`);
-                // Salva a quantidade de estrelas limpa (1-5) enviada pelo aluno
-                estrelasDadas[c.label] = el ? parseInt(el.value) : 5;
+                // BLINDAGEM CONTRA ACENTOS: O Token agora armazena o ID (c_1, c_2) que nunca tem acento!
+                notasVotadasPorId[c.id] = el ? parseInt(el.value) : 5;
             });
 
             const aval = {
@@ -503,12 +502,14 @@
                 grupo: fullTexto.split(' [')[0],
                 tema: fullTexto.includes('[') ? fullTexto.split('[')[1].replace(']', '') : 'Não informado',
                 membrosGrupo: membrosTexto,
-                estrelas: estrelasDadas,
+                votosId: notasVotadasPorId, // Usa IDs estáveis em vez de texto com acento
                 pontosFortes: document.getElementById('p-fortes').value.trim(),
                 pontosMelhorias: document.getElementById('p-melhorias').value.trim()
             };
 
-            document.getElementById('token-gerado').value = "ACAD-VOTE|" + btoa(unescape(encodeURIComponent(JSON.stringify(aval))));
+            // Codificação segura tratando caracteres UTF-8
+            const tokenInjetavel = "ACAD-VOTE|" + btoa(unescape(encodeURIComponent(JSON.stringify(aval))));
+            document.getElementById('token-gerado').value = tokenInjetavel;
             document.getElementById('form-avaliacao').classList.add('d-none');
             document.getElementById('aluno-sucesso').classList.remove('d-none');
         }
@@ -528,15 +529,12 @@
                 return;
             }
 
-            const labels = criteriosConfig.map(c => c.label);
             let somatorioNotasFinaisEscolares = 0;
-            
-            const mediasPontosPorCrit = labels.map(label => {
+            const mediasPontosPorCrit = criteriosConfig.map(c => {
                 let s = 0;
-                const critInfo = criteriosConfig.find(c => c.label === label);
                 dbAvaliacoes.forEach(a => {
-                    const estrela = a.estrelas[label] !== undefined ? a.estrelas[label] : 5;
-                    s += (estrela / 5) * critInfo.peso; // Exibe a média em pontos reais já calculados com o peso!
+                    const estrela = a.votosId && a.votosId[c.id] !== undefined ? a.votosId[c.id] : 5;
+                    s += (estrela / 5) * c.peso;
                 });
                 return (s / total);
             });
@@ -545,7 +543,7 @@
                 let pontosConquistados = 0;
                 let pontosMaximosPossiveis = 0;
                 criteriosConfig.forEach(c => {
-                    const estrelas = a.estrelas[c.label] !== undefined ? a.estrelas[c.label] : 5;
+                    const estrelas = a.votosId && a.votosId[c.id] !== undefined ? a.votosId[c.id] : 5;
                     pontosConquistados += (estrelas / 5) * c.peso;
                     pontosMaximosPossiveis += c.peso;
                 });
@@ -558,7 +556,7 @@
             dbAvaliacoes.forEach(a => {
                 if(!ranking[a.grupo]) ranking[a.grupo] = { ptConq: 0, ptMax: 0 };
                 criteriosConfig.forEach(c => {
-                    const estrela = a.estrelas[c.label] !== undefined ? a.estrelas[c.label] : 5;
+                    const estrela = a.votosId && a.votosId[c.id] !== undefined ? a.votosId[c.id] : 5;
                     ranking[a.grupo].ptConq += (estrela / 5) * c.peso;
                     ranking[a.grupo].ptMax += c.peso;
                 });
@@ -575,13 +573,12 @@
             chartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: labels.map(l => l.substring(0,12) + '...'),
+                    labels: criteriosConfig.map(c => c.label.substring(0,12) + '...'),
                     datasets: [{ label: 'Média de Pontos por Critério', data: mediasPontosPorCrit.map(m => m.toFixed(1)), backgroundColor: '#18bc9c' }]
                 },
                 options: { responsive: true, maintainAspectRatio: false }
             });
 
-            // Imprime os Feedbacks juntando o Nome dos Alunos Apresentadores (Correção Imagem)
             document.getElementById('dash-comentarios').innerHTML = dbAvaliacoes.slice().reverse().map(x => `
                 <div class="p-2 border-bottom small card mb-1 bg-white shadow-sm">
                     <strong class="text-primary">${x.grupo} <span class="text-muted" style="font-size:0.75rem;">(Alunos: ${x.membrosGrupo || 'Não informados'})</span></strong>
@@ -591,7 +588,7 @@
             `).join('');
         }
 
-        // --- Exportador Geral Conectando com Pesos Corretos no Excel ---
+        // --- Exportador Excel ---
         function exportarResultadosXLSX() {
             if (dbAvaliacoes.length === 0) return;
             const wb = XLSX.utils.book_new();
@@ -601,8 +598,8 @@
                 let totalConq = 0, totalMax = 0;
                 
                 criteriosConfig.forEach(c => {
-                    const estrelas = x.estrelas[c.label] !== undefined ? x.estrelas[c.label] : 5;
-                    const valorComPesoCalculado = (estrelas / 5) * c.peso; // RESOLVE O BUG DOS ZERADOS: Aplica o valor real calculado direto na célula!
+                    const estrelas = x.votosId && x.votosId[c.id] !== undefined ? x.votosId[c.id] : 5;
+                    const valorComPesoCalculado = (estrelas / 5) * c.peso;
                     linha[c.label] = parseFloat(valorComPesoCalculado.toFixed(2));
                     
                     totalConq += valorComPesoCalculado;
@@ -626,7 +623,7 @@
                 criteriosConfig.forEach(c => {
                     let totalPontosDoCriterio = 0;
                     amostras.forEach(a => {
-                        const estrela = a.estrelas[c.label] !== undefined ? a.estrelas[c.label] : 5;
+                        const estrela = a.votosId && a.votosId[c.id] !== undefined ? a.votosId[c.id] : 5;
                         totalPontosDoCriterio += (estrela / 5) * c.peso;
                     });
                     let mediaPonderadaDoCrit = totalPontosDoCriterio / n;
@@ -634,7 +631,7 @@
                     sMediasEscolares += mediaPonderadaDoCrit;
                 });
 
-                let totalPesos = criteriosConfig.reduce((acc, curr) => acc + curr.peso, 0);
+                let totalPesos = acrescentarPesos = criteriosConfig.reduce((acc, curr) => acc + curr.peso, 0);
                 linhaResumo["Nota Final Ponderada (0-10)"] = parseFloat(((sMediasEscolares / totalPesos) * 10).toFixed(2));
                 dadosAba2.push(linhaResumo);
             });
@@ -643,11 +640,9 @@
             XLSX.writeFile(wb, `Avaliacao_Mestre_Consolidado.xlsx`);
         }
 
-        // --- Botão para Exportar Apenas Comentários (Nova Funcionalidade da Imagem) ---
         function exportarApenasComentariosXLSX() {
             if (dbAvaliacoes.length === 0) { alert("Sem comentários para exportar."); return; }
             const wb = XLSX.utils.book_new();
-            
             const dadosComentarios = dbAvaliacoes.map(x => ({
                 "Grupo Evaluado": x.grupo,
                 "Alunos Apresentadores": x.membrosGrupo || "Não informados",
@@ -657,7 +652,6 @@
                 "Pontos Fortes": x.pontosFortes || "-",
                 "Pontos de Melhoria": x.pontosMelhorias || "-"
             }));
-
             XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dadosComentarios), "Feedbacks Textuais");
             XLSX.writeFile(wb, `Feedbacks_Comentarios_Turma.xlsx`);
         }
