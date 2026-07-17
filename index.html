@@ -84,7 +84,7 @@
         <!-- VISÃO PROFESSOR -->
         <div id="view-professor" class="view-section">
             <div class="row g-4 mb-4">
-                <!-- Coluna 1: Configuração e Importação de Votos -->
+                <!-- Configurações e Carga -->
                 <div class="col-md-4">
                     <div class="card shadow-sm mb-3">
                         <div class="card-body">
@@ -93,7 +93,7 @@
                             <label class="form-label small text-muted fw-bold mb-1">Planilha de Grupos:</label>
                             <input type="file" id="upload-excel" class="form-control form-control-sm mb-2" accept=".xlsx, .xls">
                             
-                            <label class="form-label small text-muted fw-bold mb-1">Novos Critérios (Opcional):</label>
+                            <label class="form-label small text-muted fw-bold mb-1">Planilha de Critérios (Com Peso):</label>
                             <input type="file" id="upload-criterios" class="form-control form-control-sm mb-3" accept=".xlsx, .xls">
                             
                             <label class="form-label small text-muted fw-bold mb-0">Tempo da Apresentação (min):</label>
@@ -113,7 +113,7 @@
                     </div>
                 </div>
 
-                <!-- Coluna 2: Sessão Ativa -->
+                <!-- Sessão Ativa -->
                 <div class="col-md-8">
                     <div class="card shadow-sm h-100">
                         <div class="card-body d-flex flex-column justify-content-between">
@@ -155,13 +155,13 @@
                 </div>
             </div>
 
-            <!-- Listagem de Grupos -->
+            <!-- Lista de Grupos -->
             <h4 class="mb-3 text-muted">Lista de Grupos da Disciplina</h4>
             <div id="lista-grupos" class="row row-cols-1 row-cols-md-3 g-3 mb-5">
                 <div class="col-12 text-center text-muted py-4">Aguardando importação da planilha de grupos...</div>
             </div>
 
-            <!-- Dashboard de Resultados -->
+            <!-- Dashboard -->
             <div id="dashboard-resultados">
                 <hr class="my-5">
                 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
@@ -181,7 +181,7 @@
                     <div class="col-md-4">
                         <div class="card bg-success text-white text-center p-3 shadow-sm">
                             <h2 id="dash-media-geral">0.0</h2>
-                            <div>Média Geral da Turma</div>
+                            <div>Média Geral (Base 10)</div>
                         </div>
                     </div>
                     <div class="col-md-4">
@@ -195,7 +195,7 @@
                 <div class="row g-4">
                     <div class="col-md-6">
                         <div class="card shadow-sm p-3 h-100">
-                            <h5>Média por Critério</h5>
+                            <h5>Média Ponderada por Critério</h5>
                             <div style="position: relative; height:250px; width:100%">
                                 <canvas id="chartCriterios"></canvas>
                             </div>
@@ -238,10 +238,8 @@
                                     <label class="form-label fw-bold mb-1 text-primary"><i class="fa-solid fa-users me-1"></i> Grupo Sendo Avaliado</label>
                                     <input type="text" id="aluno-grupo-nome" class="form-control bg-white fw-bold text-secondary mb-2" readonly value="Nenhum grupo ativo">
                                     
-                                    <!-- Exibição dos Alunos Integrantes na tela de avaliação padronizada para "Alunos:" -->
                                     <label class="form-label small fw-bold text-muted mb-0"><i class="fa-solid fa-id-card me-1"></i> Alunos:</label>
                                     <div id="aluno-grupo-integrantes" class="small text-dark p-2 bg-white rounded border" style="min-height:30px;">-</div>
-                                    
                                     <input type="hidden" id="aluno-grupo-id">
                                 </div>
 
@@ -260,7 +258,7 @@
                                     <input type="email" id="aluno-email" class="form-control form-control-sm" required>
                                 </div>
 
-                                <h5 class="border-bottom pb-2 mb-3 text-muted small fw-bold text-uppercase">Critérios (1 a 5 Estrelas)</h5>
+                                <h5 class="border-bottom pb-2 mb-3 text-muted small fw-bold text-uppercase">Critérios da Disciplina</h5>
                                 <div id="container-criterios"></div>
 
                                 <h5 class="border-bottom pb-2 mt-4 mb-3 text-muted small fw-bold text-uppercase">Feedback Dissertativo</h5>
@@ -300,12 +298,13 @@
         let isPausado = false;
         let chartInstance = null;
 
+        // Critérios Padrão com Peso 1 por padrão caso não mude
         let criteriosConfig = [
-            { id: 'c_1', label: 'Domínio do Assunto', desc: 'Demonstrou segurança e respondeu perguntas com precisão.' },
-            { id: 'c_2', label: 'Clareza', desc: 'Apresentação linear, compreensível e articulada.' },
-            { id: 'c_3', label: 'Organização', desc: 'Divisão clara de falas e postura integrada do grupo.' },
-            { id: 'c_4', label: 'Qualidade dos Slides', desc: 'Suporte visual limpo, legível e bem estruturado.' },
-            { id: 'c_5', label: 'Controle de Tempo', desc: 'Conclusão adequada dentro da janela estipulada.' }
+            { id: 'c_1', dim: 'Geral', label: 'Domínio do Assunto', desc: 'Demonstrou segurança e respondeu perguntas com precisão.', peso: 1 },
+            { id: 'c_2', dim: 'Geral', label: 'Clareza', desc: 'Apresentação linear, compreensível e articulada.', peso: 1 },
+            { id: 'c_3', dim: 'Geral', label: 'Organização', desc: 'Divisão clara de falas e postura integrada do grupo.', peso: 1 },
+            { id: 'c_4', dim: 'Geral', label: 'Qualidade dos Slides', desc: 'Suporte visual limpo, legível e bem estruturado.', peso: 1 },
+            { id: 'c_5', dim: 'Geral', label: 'Controle de Tempo', desc: 'Conclusão adequada dentro da janela estipulada.', peso: 1 }
         ];
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -320,12 +319,10 @@
                 switchView('aluno');
                 document.getElementById('aluno-grupo-id').value = params.get('gId');
                 document.getElementById('aluno-grupo-nome').value = `${params.get('gNome')} [${params.get('gTema')}]`;
-                document.getElementById('aluno-grupo-integrantes').innerText = params.get('gMembros') ? decodeURIComponent(params.get('gMembros')) : "Carregados via sistema";
+                document.getElementById('aluno-grupo-integrantes').innerText = params.get('gMembros') ? decodeURIComponent(params.get('gMembros')) : "-";
                 
                 if(params.has('cCrit')) {
-                    try {
-                        criteriosConfig = JSON.parse(decodeURIComponent(params.get('cCrit')));
-                    } catch(e) { console.error("Erro ao ler critérios da URL", e); }
+                    try { criteriosConfig = JSON.parse(decodeURIComponent(params.get('cCrit'))); } catch(e) { console.error(e); }
                 }
                 renderCriteriosForm();
             } else {
@@ -339,7 +336,7 @@
             document.getElementById(`view-${view}`).classList.remove('d-none');
         }
 
-        // --- Importador 1: Grupos (Corrigido para mapear Alunos ou Aluno) ---
+        // --- Importação de Grupos ---
         document.getElementById('upload-excel').addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
@@ -347,7 +344,7 @@
             reader.onload = (evt) => {
                 const data = new Uint8Array(evt.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
-                if (!workbook.SheetNames.includes('Grupos')) { alert('Erro: Planilha precisa conter a aba chamada "Grupos".'); return; }
+                if (!workbook.SheetNames.includes('Grupos')) { alert('Aba "Grupos" não encontrada.'); return; }
                 const worksheet = workbook.Sheets['Grupos'];
                 const json = XLSX.utils.sheet_to_json(worksheet);
 
@@ -355,17 +352,16 @@
                     id: index + 1,
                     nome: item.Grupo || `Grupo ${index + 1}`,
                     tema: item.Tema || 'Tema não informado',
-                    // Mapeia flexivelmente Alunos, Aluno ou Integrantes da sua planilha Excel
                     integrantes: item.Alunos || item.Aluno || item.Integrantes || 'Não informados'
                 }));
                 localStorage.setItem('acad_grupos', JSON.stringify(dbGrupos));
                 renderListaGrupos();
-                alert(`${dbGrupos.length} grupos carregados com sucesso!`);
+                alert(`${dbGrupos.length} grupos carregados.`);
             };
             reader.readAsArrayBuffer(file);
         });
 
-        // --- Importador 2: Critérios de Avaliação Customizados ---
+        // --- Importação de Critérios Avançados (Lê Dimensão, Critério, Descrição e Peso) ---
         document.getElementById('upload-criterios').addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
@@ -379,13 +375,15 @@
                 if(json.length > 0 && json[0].Criterio) {
                     criteriosConfig = json.map((item, idx) => ({
                         id: `c_${idx + 1}`,
-                        label: item.Criterio,
-                        desc: item.Descricao || 'Avalie o desempenho do grupo de 1 a 5 estrelas.'
+                        dim: item.Dimensão || 'Geral',
+                        label: item.Criterio || item.Critério,
+                        desc: item.Descrição || item.Descricao || 'Avalie de 1 a 5',
+                        peso: parseFloat(item.Peso) || 1
                     }));
-                    alert(`Sucesso! ${criteriosConfig.length} critérios customizados foram definidos.`);
+                    alert(`Sucesso! ${criteriosConfig.length} critérios parametrizados com pesos inteligentes.`);
                     if(grupoAtivo) atualizarPainelAtivo();
                 } else {
-                    alert('Erro: A planilha de critérios precisa conter pelo menos a coluna "Criterio".');
+                    alert('Erro: A planilha deve conter as colunas "Criterio" e "Peso".');
                 }
             };
             reader.readAsArrayBuffer(file);
@@ -394,7 +392,7 @@
         function renderListaGrupos() {
             const container = document.getElementById('lista-grupos');
             if (dbGrupos.length === 0) {
-                container.innerHTML = '<div class="col-12 text-center text-muted py-4">Aguardando importação da planilha de grupos...</div>';
+                container.innerHTML = '<div class="col-12 text-center text-muted py-4">Aguardando importação...</div>';
                 return;
             }
             container.innerHTML = dbGrupos.map(g => {
@@ -409,10 +407,7 @@
                                     <p class="card-text text-secondary small"><strong>Alunos:</strong> ${g.integrantes}</p>
                                 </div>
                                 <div class="mt-3">
-                                    ${isAtivo 
-                                        ? `<button class="btn btn-warning btn-sm w-100 disabled">Apresentando...</button>`
-                                        : `<button class="btn btn-outline-primary btn-sm w-100" onclick="iniciarApresentacao(${g.id})"><i class="fa-solid fa-play me-1"></i>Iniciar</button>`
-                                    }
+                                    ${isAtivo ? `<button class="btn btn-warning btn-sm w-100 disabled">Apresentando...</button>` : `<button class="btn btn-outline-primary btn-sm w-100" onclick="iniciarApresentacao(${g.id})">Iniciar</button>`}
                                 </div>
                             </div>
                         </div>
@@ -425,8 +420,7 @@
             const g = dbGrupos.find(x => x.id === id);
             if (!g) return;
             grupoAtivo = g;
-            const minutosDefinidos = parseInt(document.getElementById('tempo-definido').value) || 15;
-            tempoRestante = minutosDefinidos * 60;
+            tempoRestante = (parseInt(document.getElementById('tempo-definido').value) || 15) * 60;
             isPausado = false;
             renderListaGrupos();
             atualizarPainelAtivo();
@@ -435,79 +429,61 @@
 
         function atualizarPainelAtivo() {
             document.getElementById('sessao-vazia').classList.add('d-none');
-            const ativa = document.getElementById('sessao-ativa');
-            ativa.classList.remove('d-none');
-
+            document.getElementById('sessao-ativa').classList.remove('d-none');
             document.getElementById('ativo-nome').innerText = grupoAtivo.nome;
             document.getElementById('ativo-tema').innerText = grupoAtivo.tema;
             document.getElementById('ativo-integrantes').innerHTML = `<strong>Alunos:</strong> ${grupoAtivo.integrantes}`;
 
             const qrContainer = document.getElementById('qrcode');
             qrContainer.innerHTML = "";
-            
             const urlBase = window.location.href.split('?')[0];
             const urlFinal = `${urlBase}?gId=${grupoAtivo.id}&gNome=${encodeURIComponent(grupoAtivo.nome)}&gTema=${encodeURIComponent(grupoAtivo.tema)}&gMembros=${encodeURIComponent(grupoAtivo.integrantes)}&cCrit=${encodeURIComponent(JSON.stringify(criteriosConfig))}`;
             
-            new QRCode(qrContainer, {
-                text: urlFinal,
-                width: 120,
-                height: 120,
-                colorDark : "#2c3e50",
-                colorLight : "#ffffff"
-            });
+            new QRCode(qrContainer, { text: urlFinal, width: 120, height: 120, colorDark : "#2c3e50", colorLight : "#ffffff" });
             qrContainer.setAttribute('data-link', urlFinal);
         }
 
-        // --- Cronômetro ---
         function dispararTimer() {
             clearInterval(timerInterval);
-            exibirMascaraTempo();
             timerInterval = setInterval(() => {
                 if (!isPausado) {
                     tempoRestante--;
-                    exibirMascaraTempo();
+                    let mins = parseInt(tempoRestante / 60, 10);
+                    let segs = parseInt(tempoRestante % 60, 10);
+                    document.getElementById('cronometro').textContent = `${mins < 10 ? "0" + mins : mins}:${segs < 10 ? "0" + segs : segs}`;
                     if (tempoRestante <= 0) { clearInterval(timerInterval); document.getElementById('cronometro').textContent = "TEMPO ESGOTADO"; }
                 }
             }, 1000);
-        }
-        function exibirMascaraTempo() {
-            let mins = parseInt(tempoRestante / 60, 10);
-            let segs = parseInt(tempoRestante % 60, 10);
-            document.getElementById('cronometro').textContent = `${mins < 10 ? "0" + mins : mins}:${segs < 10 ? "0" + segs : segs}`;
         }
         function pausarTimer() { isPausado = true; document.getElementById('btn-pausar').classList.add('d-none'); document.getElementById('btn-retomar').classList.remove('d-none'); }
         function retomarTimer() { isPausado = false; document.getElementById('btn-retomar').classList.add('d-none'); document.getElementById('btn-pausar').classList.remove('d-none'); }
         function finalizarApresentacao() { clearInterval(timerInterval); grupoAtivo = null; document.getElementById('sessao-ativa').classList.add('d-none'); document.getElementById('sessao-vazia').classList.remove('d-none'); renderListaGrupos(); }
 
-        // --- Processamento dos Tokens de Votos ---
         function processarTokensProfessor() {
             const rawText = document.getElementById('votos-brutos').value.trim();
-            if(!rawText) { alert("Cole os tokens enviados pelos alunos primeiro."); return; }
+            if(!rawText) return;
             const linhas = rawText.split('\n');
-            let inseridos = 0, duplicados = 0;
-
-            linhas.forEach(linha => {
-                if(!linha.startsWith("ACAD-VOTE|")) return;
+            let ins = 0, dup = 0;
+            linhas.forEach(l => {
+                if(!l.startsWith("ACAD-VOTE|")) return;
                 try {
-                    const partes = linha.split('|');
-                    const jsonString = atob(partes[1]); 
-                    const obj = JSON.parse(jsonString);
-                    const jaExiste = dbAvaliacoes.some(x => x.ra === obj.ra && x.grupoId === obj.grupoId);
-                    if(!jaExiste) { dbAvaliacoes.push(obj); inseridos++; } else { duplicados++; }
-                } catch(e) { console.error("Erro ao processar linha:", e); }
+                    const json = JSON.parse(atob(l.split('|')[1]));
+                    if(!dbAvaliacoes.some(x => x.ra === json.ra && x.grupoId === json.grupoId)) { dbAvaliacoes.push(json); ins++; } else { dup++; }
+                } catch(e) { console.error(e); }
             });
             document.getElementById('votos-brutos').value = "";
             renderDashboard();
-            alert(`Processamento Concluído!\n${inseridos} novos votos validados.\n${duplicados} votos duplicados descartados.`);
+            alert(`Processado: ${ins} válidos | ${dup} duplicados.`);
         }
 
-        // --- Aluno: Geração do Formulário ---
+        // --- Aluno: Geração da Interface Dinâmica ---
         function renderCriteriosForm() {
             document.getElementById('container-criterios').innerHTML = criteriosConfig.map(c => `
-                <div class="mb-3 p-2 bg-light rounded border-start border-3 border-primary shadow-sm">
+                <div class="mb-3 p-2 bg-white rounded border-start border-3 border-primary shadow-sm">
                     <div class="d-flex justify-content-between align-items-center flex-wrap">
                         <div style="max-width: 65%;">
-                            <label class="form-label mb-0 fw-bold small text-dark">${c.label}</label>
+                            <span class="badge bg-secondary mb-1" style="font-size:0.65rem;">${c.dim} (Peso ${c.peso})</span>
+                            <label class="form-label mb-0 d-block fw-bold small text-dark">${c.label}</label>
                             <span class="text-muted d-block" style="font-size:0.75rem; line-height: 1.1;">${c.desc}</span>
                         </div>
                         <div class="star-rating">
@@ -525,89 +501,83 @@
         function gerarTokenAluno(e) {
             e.preventDefault();
             const gId = document.getElementById('aluno-grupo-id').value;
-            const fullGrupoTexto = document.getElementById('aluno-grupo-nome').value;
+            const fullTexto = document.getElementById('aluno-grupo-nome').value;
             const email = document.getElementById('aluno-email').value.trim().toLowerCase();
             const ra = document.getElementById('aluno-ra').value.trim();
             const nome = document.getElementById('aluno-nome').value.trim();
 
-            const notasCapturadas = {};
+            const estrelasDadas = {};
             criteriosConfig.forEach(c => {
-                const elemento = document.querySelector(`input[name="crit-${c.id}"]:checked`);
-                notasCapturadas[c.label] = elemento ? parseInt(elemento.value) : 5;
+                const el = document.querySelector(`input[name="crit-${c.id}"]:checked`);
+                estrelasDadas[c.label] = el ? parseInt(el.value) : 5;
             });
 
-            const avaliacaoEstrutura = {
-                ra: ra,
-                aluno: nome,
-                email: email,
-                grupoId: gId,
-                grupo: fullGrupoTexto.split(' [')[0],
-                tema: fullGrupoTexto.includes('[') ? fullGrupoTexto.split('[')[1].replace(']', '') : 'Não informado',
-                notas: notasCapturadas,
+            const aval = {
+                ra: ra, aluno: nome, email: email, grupoId: gId,
+                grupo: fullTexto.split(' [')[0],
+                tema: fullTexto.includes('[') ? fullTexto.split('[')[1].replace(']', '') : 'Não informado',
+                estrelas: estrelasDadas,
+                configCriterios: criteriosConfig, // Guarda a foto dos pesos vigentes no token
                 pontosFortes: document.getElementById('p-fortes').value.trim(),
                 pontosMelhorias: document.getElementById('p-melhorias').value.trim()
             };
 
-            const tokenInjetavel = "ACAD-VOTE|" + btoa(unescape(encodeURIComponent(JSON.stringify(avaliacaoEstrutura))));
-            document.getElementById('token-gerado').value = tokenInjetavel;
+            document.getElementById('token-gerado').value = "ACAD-VOTE|" + btoa(unescape(encodeURIComponent(JSON.stringify(aval))));
             document.getElementById('form-avaliacao').classList.add('d-none');
             document.getElementById('aluno-sucesso').classList.remove('d-none');
         }
 
-        function copiarTokenAluno() {
-            const areaText = document.getElementById('token-gerado');
-            areaText.select();
-            navigator.clipboard.writeText(areaText.value);
-            alert("Token Copiado! Cole no chat da aula.");
-        }
+        function copiarTokenAluno() { const area = document.getElementById('token-gerado'); area.select(); navigator.clipboard.writeText(area.value); alert("Token Copiado!"); }
+        function resgatarFormulario() { document.getElementById('form-avaliacao').reset(); document.getElementById('form-avaliacao').classList.remove('d-none'); document.getElementById('aluno-sucesso').classList.add('d-none'); }
 
-        function resgatarFormulario() {
-            document.getElementById('form-avaliacao').reset();
-            document.getElementById('form-avaliacao').classList.remove('d-none');
-            document.getElementById('aluno-sucesso').classList.add('d-none');
-        }
-
-        // --- Dashboard ---
+        // --- Dashboard com Média Ponderada Inteligente ---
         function renderDashboard() {
             const total = dbAvaliacoes.length;
             document.getElementById('dash-total-aval').innerText = total;
-
             if (total === 0) {
                 document.getElementById('dash-media-geral').innerText = "0.0";
                 document.getElementById('dash-grupo-top').innerText = "-";
-                document.getElementById('dash-comentarios').innerHTML = '<p class="text-muted small">Nenhum feedback em texto registrado.</p>';
                 if(chartInstance) chartInstance.destroy();
                 return;
             }
 
-            const chavesCriterios = Object.keys(dbAvaliacoes[0].notas);
-            const somas = {}; chavesCriterios.forEach(k => somas[k] = 0);
+            const activeCrits = dbAvaliacoes[0].configCriterios || criteriosConfig;
+            const labels = activeCrits.map(c => c.label);
             
-            let somaGeralDasMedias = 0;
+            let somatorioNotasFinaisEscolares = 0;
+            const mediasEstrelasPorCrit = labels.map(label => {
+                let s = 0;
+                dbAvaliacoes.forEach(a => s += (a.estrelas[label] || 0));
+                return (s / total); // Média de estrelas puras (1 a 5)
+            });
+
+            // Calcula a nota escolar (0 a 10) baseada nos pesos reais das Dimensões
             dbAvaliacoes.forEach(a => {
-                chavesCriterios.forEach(k => { somas[k] += (a.notas[k] || 0); });
+                let pontosConquistados = 0;
+                let pontosMaximosPossiveis = 0;
+                a.configCriterios.forEach(c => {
+                    const estrelas = a.estrelas[c.label] || 5;
+                    pontosConquistados += (estrelas / 5) * c.peso;
+                    pontosMaximosPossiveis += c.peso;
+                });
+                somatorioNotasFinaisEscolares += (pontosConquistados / pontosMaximosPossiveis) * 10;
             });
 
-            const dadosGrafico = [];
-            chavesCriterios.forEach(k => {
-                const mediaCrit = (somas[k] / total);
-                dadosGrafico.push(mediaCrit.toFixed(1));
-                somaGeralDasMedias += mediaCrit;
-            });
+            document.getElementById('dash-media-geral').innerText = (somatorioNotasFinaisEscolares / total).toFixed(1);
 
-            document.getElementById('dash-media-geral').innerText = (somaGeralDasMedias / chavesCriterios.length).toFixed(1);
-
+            // Ranking
             const ranking = {};
             dbAvaliacoes.forEach(a => {
-                if(!ranking[a.grupo]) ranking[a.grupo] = { soma: 0, c: 0 };
-                let sub = 0; chavesCriterios.forEach(k => sub += a.notas[k]);
-                ranking[a.grupo].soma += (sub / chavesCriterios.length);
-                ranking[a.grupo].c++;
+                if(!ranking[a.grupo]) ranking[a.grupo] = { ptConq: 0, ptMax: 0 };
+                a.configCriterios.forEach(c => {
+                    ranking[a.grupo].ptConq += ((a.estrelas[c.label] || 5) / 5) * c.peso;
+                    ranking[a.grupo].ptMax += c.peso;
+                });
             });
             let topG = "-"; let maxM = 0;
-            for (let name in ranking) {
-                let m = ranking[name].soma / ranking[name].c;
-                if(m > maxM) { maxM = m; topG = name; }
+            for(let g in ranking) {
+                let m = (ranking[g].ptConq / ranking[g].ptMax) * 10;
+                if(m > maxM) { maxM = m; topG = g; }
             }
             document.getElementById('dash-grupo-top').innerText = topG;
 
@@ -616,14 +586,13 @@
             chartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: chavesCriterios,
-                    datasets: [{ label: 'Média Atual', data: dadosGrafico, backgroundColor: '#18bc9c' }]
+                    labels: labels,
+                    datasets: [{ label: 'Média de Estrelas (1-5)', data: mediasEstrelasPorCrit.map(m => m.toFixed(1)), backgroundColor: '#18bc9c' }]
                 },
                 options: { scales: { y: { min: 0, max: 5 } }, responsive: true, maintainAspectRatio: false }
             });
 
-            const feed = document.getElementById('dash-comentarios');
-            feed.innerHTML = dbAvaliacoes.slice().reverse().map(x => `
+            document.getElementById('dash-comentarios').innerHTML = dbAvaliacoes.slice().reverse().map(x => `
                 <div class="p-2 border-bottom small card mb-1 bg-white">
                     <strong class="text-primary">${x.grupo}</strong>
                     <div class="text-success text-xs"><strong>+</strong> ${x.pontosFortes || '-'}</div>
@@ -632,21 +601,24 @@
             `).join('');
         }
 
-        // --- Exportador Excel ---
+        // --- Exportação Estruturada Completa para o OneDrive ---
         function exportarResultadosXLSX() {
-            if (dbAvaliacoes.length === 0) { alert("Sem registros disponíveis."); return; }
+            if (dbAvaliacoes.length === 0) return;
             const wb = XLSX.utils.book_new();
-            const chavesCriterios = Object.keys(dbAvaliacoes[0].notas);
+            const activeCrits = dbAvaliacoes[0].configCriterios;
 
             const dadosAba1 = dbAvaliacoes.map(x => {
-                const linha = {
-                    "RA": x.ra,
-                    "Aluno": x.aluno,
-                    "E-mail": x.email,
-                    "Grupo": x.grupo,
-                    "Tema": x.tema
-                };
-                chavesCriterios.forEach(k => { linha[k] = x.notas[k]; });
+                const linha = { "RA": x.ra, "Aluno": x.aluno, "E-mail": x.email, "Grupo": x.grupo, "Tema": x.tema };
+                
+                let totalConq = 0, totalMax = 0;
+                activeCrits.forEach(c => {
+                    const estrelas = x.estrelas[c.label] || 0;
+                    linha[c.label] = estrelas; // Exporta a nota direta dada pelo aluno
+                    totalConq += (estrelas / 5) * c.peso;
+                    totalMax += c.peso;
+                });
+
+                linha["Nota Ponderada Calculada (0-10)"] = ((totalConq / totalMax) * 10).toFixed(2);
                 linha["Pontos Fortes"] = x.pontosFortes;
                 linha["Pontos de Melhorias"] = x.pontosMelhorias;
                 return linha;
@@ -654,29 +626,28 @@
             XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dadosAba1), "Avaliações");
 
             const dadosAba2 = [];
-            const listaGruposInstanciados = [...new Set(dbAvaliacoes.map(x => x.grupo))];
-            
-            listaGruposInstanciados.forEach(nomeG => {
-                const amostras = dbAvaliacoes.filter(x => x.grupo === nomeG);
+            const grupos = [...new Set(dbAvaliacoes.map(x => x.grupo))];
+            grupos.forEach(g => {
+                const amostras = dbAvaliacoes.filter(x => x.grupo === g);
                 const n = amostras.length;
+                const linhaResumo = { "Grupo": g, "Total de Avaliadores": n };
                 
-                const linhaResumo = { "Grupo": nomeG, "Total de Avaliadores": n };
-                let somaDasMedias = 0;
-
-                chavesCriterios.forEach(k => {
-                    let somatorioC = 0;
-                    amostras.forEach(a => somatorioC += a.notas[k]);
-                    let m = somatorioC / n;
-                    linhaResumo[`Média ${k}`] = m.toFixed(2);
-                    somaDasMedias += m;
+                let somaMediasEscolares = 0;
+                activeCrits.forEach(c => {
+                    let totalEstrelas = 0;
+                    amostras.forEach(a => totalEstrelas += (a.estrelas[c.label] || 0));
+                    let mediaEstrelas = totalEstrelas / n;
+                    linhaResumo[`Média ${c.label} (Estrelas)`] = mediaEstrelas.toFixed(2);
+                    somaMediasEscolares += (mediaEstrelas / 5) * c.peso;
                 });
 
-                linhaResumo["Média Geral do Grupo"] = (somaDasMedias / chavesCriterios.length).toFixed(2);
+                let totalPesos = activeCrits.reduce((acc, curr) => acc + curr.peso, 0);
+                linhaResumo["Nota Final Ponderada (0-10)"] = ((somaMediasEscolares / totalPesos) * 10).toFixed(2);
                 dadosAba2.push(linhaResumo);
             });
             XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dadosAba2), "Resumo");
 
-            XLSX.writeFile(wb, `Avaliacao_Turma_Consolidado.xlsx`);
+            XLSX.writeFile(wb, `Avaliacao_Ponderada_Turma.xlsx`);
         }
 
         function copiarLinkAluno() {
