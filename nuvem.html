@@ -300,10 +300,8 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <script>
-        // SEU LINK OFICIAL DA API DO GOOGLE SHEETS IMPLANTADO COM SUCESSO!
         const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwdM6qz0oagcufYZIMMzAiUebza-89YJ-fafR5D0Lzw2gWAYAQdcfPGxkp8tCvjaK2q/exec";
 
-        // Inicialização limpa forçada para abrir em branco no início da aula
         let dbGrupos = [];
         let dbCriterios = [];
         let dbAvaliacoes = []; 
@@ -399,11 +397,11 @@
                     }
                 }
                 
-                dbAvaliacoes = []; // Reseta o cache de votos ao iniciar uma nova grade limpa
+                dbAvaliacoes = []; // Limpeza de cache forçada para nova grade de critérios
                 renderListaGrupos();
                 atualizarDropdownFiltro();
                 renderDashboard();
-                alert(`Sucesso!\n- ${dbGrupos.length} Grupos importados.\n- ${criteriosConfig.length} Critérios carregados de forma dinâmica.`);
+                alert(`Sucesso!\n- ${dbGrupos.length} Grupos importados.\n- ${criteriosConfig.length} Critérios carregados.`);
             };
             reader.readAsArrayBuffer(file);
         });
@@ -486,10 +484,7 @@
         function finalizarApresentacao() { clearInterval(timerInterval); grupoAtivo = null; document.getElementById('sessao-ativa').classList.add('d-none'); document.getElementById('sessao-vazia').classList.remove('d-none'); renderListaGrupos(); }
 
         function baixarVotosDaNuvem() {
-            if(!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes("SUA_URL_AQUI")) {
-                alert("Erro: Configure a URL do Google Script primeiro.");
-                return;
-            }
+            if(!GOOGLE_SCRIPT_URL) return;
             fetch(GOOGLE_SCRIPT_URL + "?action=read")
             .then(res => res.json())
             .then(json => {
@@ -498,12 +493,12 @@
                     renderDashboard();
                     alert(`Sincronização concluída! ${dbAvaliacoes.length} avaliações baixadas da nuvem.`);
                 } else {
-                    alert("Planilha acessada com sucesso! Aguardando a chegada dos primeiros votos.");
+                    alert("Planilha acessada com sucesso! Aguardando os primeiros votos.");
                 }
             })
             .catch(err => {
                 console.error(err);
-                alert("Planilha iniciada com sucesso. O banco de dados está pronto para receber votos da turma.");
+                alert("Planilha iniciada com sucesso. O banco de dados está pronto.");
             });
         }
 
@@ -536,11 +531,6 @@
 
         function enviarDadosNuvemAluno(e) {
             e.preventDefault();
-            if(!GOOGLE_SCRIPT_URL) {
-                alert("Erro técnico: O link do banco de dados está indisponível.");
-                return;
-            }
-
             const btn = document.getElementById("btn-enviar-aluno");
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Enviando Notas...';
             btn.disabled = true;
@@ -581,7 +571,7 @@
             })
             .catch(err => {
                 console.error(err);
-                alert("Erro ao conectar à nuvem. Verifique sua conexão de rede.");
+                alert("Erro ao conectar à nuvem. Verifique sua conexão.");
             })
             .finally(() => {
                 btn.innerHTML = '<i class="fa-solid fa-cloud-upload-alt me-2"></i>Enviar Minha Avaliação';
@@ -591,7 +581,6 @@
 
         function resgatarFormulario() { document.getElementById('form-avaliacao').reset(); document.getElementById('form-avaliacao').classList.remove('d-none'); document.getElementById('aluno-sucesso').classList.add('d-none'); }
 
-        // --- Dashboard ---
         function renderDashboard() {
             const totalTotal = dbAvaliacoes.length;
             if (totalTotal === 0) {
@@ -671,7 +660,6 @@
             `).join('');
         }
 
-        // --- EXPORTADOR DINÂMICO DE PLANILHAS (Aplica colunas reais com base nos critérios ativos) ---
         function exportarResultadosXLSX() {
             if (dbAvaliacoes.length === 0) return;
             const wb = XLSX.utils.book_new();
@@ -713,7 +701,7 @@
                     sMediasEscolares += mediaPonderadaDoCrit;
                 });
 
-                let totalPesos =  criteriosConfig.reduce((acc, curr) => acc + curr.peso, 0);
+                let totalPesos = criteriosConfig.reduce((acc, curr) => acc + curr.peso, 0);
                 linhaResumo["Nota Final Ponderada (0-10)"] = parseFloat(((sMediasEscolares / totalPesos) * 10).toFixed(2));
                 dadosAba2.push(linhaResumo);
             });
