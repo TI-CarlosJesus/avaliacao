@@ -324,7 +324,7 @@
             { id: 'c_7', dim: 'Conteúdo', label: 'Argumentação', desc: 'Defendeu pontos com raciocínio lógico estruturado.', peso: 10 },
             { id: 'c_8', dim: 'Conteúdo', label: 'Uso de Evidências', desc: 'Fundamentação teórica, dados técnicos ou referências válidas.', peso: 10 },
             { id: 'c_9', dim: 'Conteúdo', label: 'Conhecimento Prático', desc: 'Relacionou a teoria com aplicações práticas ou estudos de caso.', peso: 8 },
-            { id: 'c_10', dim: 'Conteúdo', label: 'Criatividade / Originalidade', desc: 'Apresentao abordagens inovadoras ou exemplos diferenciados.', peso: 5 },
+            { id: 'c_10', dim: 'Conteúdo', label: 'Criatividade / Originalidade', desc: 'Apresentou abordagens inovadoras ou exemplos diferenciados.', peso: 5 },
             { id: 'c_11', dim: 'Comunicação', label: 'Comunicação Verbal', desc: 'Utilizou tom de voz audível, boa dicção e vocabulário formal.', peso: 5 },
             { id: 'c_12', dim: 'Comunicação', label: 'Postura Profissional', desc: 'Demonstrou ética, seriedade e linguagem corporal corporativa.', peso: 3 },
             { id: 'c_13', dim: 'Estrutura', label: 'Conclusão e Fechamento', desc: 'Finalizou respondendo ao objetivo principal com síntese clara.', peso: 3 },
@@ -336,14 +336,30 @@
             verificarModoAcesso();
         });
 
+        // TRATAMENTO EXCLUSIVO DE URL: Limpa e decodifica qualquer acentuação corrompida passada via link ou chat
+        function decodificarParametroSeguro(param) {
+            if(!param) return "-";
+            try {
+                return decodeURIComponent(param.replace(/\+/g, " "));
+            } catch(e) {
+                try { return unescape(param); } catch(err) { return param; }
+            }
+        }
+
         function verificarModoAcesso() {
             const params = new URLSearchParams(window.location.search);
             if (params.has('gId')) {
                 document.getElementById('menu-navegacao').classList.add('d-none');
                 switchView('aluno');
                 document.getElementById('aluno-grupo-id').value = params.get('gId');
-                document.getElementById('aluno-grupo-nome').value = `${params.get('gNome')} [${params.get('gTema')}]`;
-                document.getElementById('aluno-grupo-integrantes').innerText = params.get('gMembros') ? decodeURIComponent(params.get('gMembros')) : "-";
+                
+                // Aplica a decodificação segura nos campos de texto
+                const nomeGrupo = decodificarParametroSeguro(params.get('gNome'));
+                const temaGrupo = decodificarParametroSeguro(params.get('gTema'));
+                const membrosGrupo = decodificarParametroSeguro(params.get('gMembros'));
+
+                document.getElementById('aluno-grupo-nome').value = `${nomeGrupo} [${temaGrupo}]`;
+                document.getElementById('aluno-grupo-integrantes').innerText = membrosGrupo;
                 renderCriteriosForm();
             } else {
                 switchView('professor');
@@ -468,7 +484,6 @@
         function retomarTimer() { isPausado = false; document.getElementById('btn-retomar').classList.add('d-none'); document.getElementById('btn-pausar').classList.remove('d-none'); }
         function finalizarApresentacao() { clearInterval(timerInterval); grupoAtivo = null; document.getElementById('sessao-ativa').classList.add('d-none'); document.getElementById('sessao-vazia').classList.remove('d-none'); renderListaGrupos(); }
 
-        // PROCESSO DE ENTRADA CORRIGIDO: Lê o formato de texto direto e limpo sem caracteres base64 sensíveis
         function processarTokensProfessor() {
             const rawText = document.getElementById('votos-brutos').value.trim();
             if(!rawText) return;
@@ -508,7 +523,6 @@
             alert(`Processamento Concluído! ${ins} válidos | ${dup} duplicados.`);
         }
 
-        // Correção das tags label e aspas duplas estruturais que causavam o travamento (Ajuste Crítico)
         function renderCriteriosForm() {
             document.getElementById('container-criterios').innerHTML = criteriosConfig.map((c, index) => {
                 const numeroFormatado = String(index + 1).padStart(2, '0');
@@ -536,7 +550,6 @@
             }).join('');
         }
 
-        // PROCESSO DE SAÍDA CORRIGIDO: Gera um JSON em formato string pura, sem base64 complexo, evitando falhas
         function gerarTokenAluno(e) {
             e.preventDefault();
             const gId = document.getElementById('aluno-grupo-id').value;
@@ -562,6 +575,7 @@
                 pontosMelhorias: document.getElementById('p-melhorias').value.trim()
             };
             
+            // Geração em formato string-JSON limpa: Sem travar links ou anônimos!
             document.getElementById('token-gerado').value = "ACAD-VOTE|" + JSON.stringify(aval);
             document.getElementById('form-avaliacao').classList.add('d-none');
             document.getElementById('aluno-sucesso').classList.remove('d-none');
