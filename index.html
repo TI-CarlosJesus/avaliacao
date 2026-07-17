@@ -63,6 +63,13 @@
         #qrcode img {
             margin: 0 auto;
         }
+        .crit-num {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: var(--primary-color);
+            min-width: 25px;
+            display: inline-block;
+        }
     </style>
 </head>
 <body>
@@ -89,7 +96,7 @@
                     <div class="card shadow-sm mb-3">
                         <div class="card-body">
                             <h5 class="card-title text-muted small fw-bold"><i class="fa-solid fa-file-import me-2"></i>1. CARREGAR CONFIGURAÇÃO</h5>
-                            <p class="text-muted mb-2" style="font-size: 0.75rem;">Selecione a planilha mestre contendo a aba <strong>Grupos</strong>.</p>
+                            <p class="text-muted mb-2" style="font-size: 0.75rem;">Selecione a planilha mestre contendo as abas <strong>Grupos</strong> e <strong>Critérios</strong>.</p>
                             
                             <input type="file" id="upload-master" class="form-control form-control-sm mb-3" accept=".xlsx, .xls">
                             
@@ -155,7 +162,7 @@
             <!-- Lista de Grupos -->
             <h4 class="mb-3 text-muted">Lista de Grupos da Disciplina</h4>
             <div id="lista-grupos" class="row row-cols-1 row-cols-md-3 g-3 mb-5">
-                <div class="col-12 text-center text-muted py-4">Aguardando importação da planilha...</div>
+                <div class="col-12 text-center text-muted py-4">Por favor, carregue a planilha mestre para iniciar.</div>
             </div>
 
             <!-- Dashboard -->
@@ -192,7 +199,15 @@
                 <div class="row g-4">
                     <div class="col-md-6">
                         <div class="card shadow-sm p-3 h-100">
-                            <h5>Média de Pontos por Critério</h5>
+                            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                                <h5 class="mb-0">Média de Pontos por Critério</h5>
+                                <div class="d-flex align-items-center">
+                                    <label class="me-2 small fw-bold text-muted text-nowrap"><i class="fa-solid fa-filter me-1"></i>Filtrar:</label>
+                                    <select id="filtro-trabalho-grafico" class="form-select form-select-sm text-primary fw-bold" onchange="renderDashboard()" style="min-width: 140px;">
+                                        <option value="GERAL">Média da Turma</option>
+                                    </select>
+                                </div>
+                            </div>
                             <div style="position: relative; height:250px; width:100%">
                                 <canvas id="chartCriterios"></canvas>
                             </div>
@@ -228,7 +243,7 @@
                                 <i class="fa-solid fa-circle-check text-success fa-3x mb-3"></i>
                                 <h4 class="text-success">Avaliação Gerada!</h4>
                                 <p class="small text-muted">Para computar seu voto na planilha do professor, clique no botão abaixo para copiar o seu token de validação e cole no chat da aula ou grupo indicado.</p>
-                                <textarea id="token-gerado" class="form-control text-center font-monospace small mb-3 bg-light" readonly rows="3" style="font-size: 0.8rem;"></textarea>
+                                <textarea id="token-gerado" class="form-control text-center font-monospace small mb-3 bg-light" readonly rows="3" style="font-size: 0.8rem; height: 90px;"></textarea>
                                 <button class="btn btn-success w-100 fw-bold py-2" onclick="copiarTokenAluno()">
                                     <i class="fa-solid fa-copy me-2"></i>COPIAR TOKEN DE AVALIAÇÃO
                                 </button>
@@ -291,7 +306,9 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <script>
-        let dbGrupos = JSON.parse(localStorage.getItem('acad_grupos')) || [];
+        // Correção de inicialização: Força a página a vir 100% vazia se não houver upload novo
+        let dbGrupos = [];
+        let dbCriterios = [];
         let dbAvaliacoes = []; 
         let grupoAtivo = null;
         let timerInterval = null;
@@ -299,27 +316,55 @@
         let isPausado = false;
         let chartInstance = null;
 
-        const criteriosConfig = [
-            { id: 'c_1', dim: 'Equipe', label: 'Trabalho em Equipe', desc: 'Integração, sinergia e cooperação mútua entre os membros.', peso: 8 },
-            { id: 'c_2', dim: 'Estrutura', label: 'Organização e Qualidade dos Slides', desc: 'Estrutura lógica, design limpo, legibilidade e suporte visual.', peso: 8 },
-            { id: 'c_3', dim: 'Recursos', label: 'Uso de Recursos Audiovisuais', desc: 'Utilizou imagens, diagramas ou mídias de suporte adequadamente.', peso: 5 },
-            { id: 'c_4', dim: 'Conteúdo', label: 'Domínio do Assunto', desc: 'Demonstrou segurança jurídica/técnica e respondeu com precisão.', peso: 15 },
-            { id: 'c_5', dim: 'Conteúdo', label: 'Clareza', desc: 'Explicou os conceitos de forma compreensível e articulada.', peso: 10 },
-            { id: 'c_6', dim: 'Conteúdo', label: 'Objetividade', desc: 'Apresentação direta ao ponto, evitando redundâncias e desvios.', peso: 8 },
-            { id: 'c_7', dim: 'Conteúdo', label: 'Argumentação', desc: 'Defendeu pontos com raciocínio lógico estruturado.', peso: 10 },
-            { id: 'c_8', dim: 'Conteúdo', label: 'Uso de Evidências', desc: 'Fundamentação teórica, dados técnicos ou referências válidas.', peso: 10 },
-            { id: 'c_9', dim: 'Conteúdo', label: 'Conhecimento Prático', desc: 'Relacionou a teoria com aplicações práticas ou estudos de caso.', peso: 8 },
-            { id: 'c_10', dim: 'Conteúdo', label: 'Criatividade / Originalidade', desc: 'Apresentou abordagens inovadoras ou exemplos diferenciados.', peso: 5 },
-            { id: 'c_11', dim: 'Comunicação', label: 'Comunicação Verbal', desc: 'Utilizou tom de voz audível, boa dicção e vocabulário formal.', peso: 5 },
-            { id: 'c_12', dim: 'Comunicação', label: 'Postura Profissional', desc: 'Demonstrou ética, seriedade e linguagem corporal corporativa.', peso: 3 },
-            { id: 'c_13', dim: 'Estrutura', label: 'Conclusão e Fechamento', desc: 'Finalizou respondendo ao objetivo principal com síntese clara.', peso: 3 },
-            { id: 'c_14', dim: 'Estrutura', label: 'Controle do Tempo', desc: 'Concluiu a apresentação dentro da janela regulamentar informada.', peso: 2 }
+        // Fallback estrutural básico inicial
+        let criteriosConfig = [
+            { id: 'c_1', dim: 'Equipe', label: 'Trabalho em Equipe', desc: 'Integração e cooperação mútua.', peso: 8 },
+            { id: 'c_2', dim: 'Estrutura', label: 'Organização e Qualidade dos Slides', desc: 'Estrutura lógica e suporte visual.', peso: 8 },
+            { id: 'c_3', dim: 'Recursos', label: 'Uso de Recursos Audiovisuais', desc: 'Utilizou mídias de suporte adequadamente.', peso: 5 },
+            { id: 'c_4', dim: 'Conteúdo', label: 'Domínio do Assunto', desc: 'Demonstrou segurança e respondeu com precisão.', peso: 15 },
+            { id: 'c_5', dim: 'Conteúdo', label: 'Clareza', desc: 'Explicou os conceitos de forma compreensível.', peso: 10 }
         ];
 
+        function salvarEstado() {
+            try {
+                localStorage.setItem('avaliacaoAcademica_estado', JSON.stringify({
+                    dbGrupos, criteriosConfig, dbAvaliacoes
+                }));
+            } catch (e) { console.error('Falha ao salvar estado local:', e); }
+        }
+
+        function carregarEstado() {
+            try {
+                const salvo = localStorage.getItem('avaliacaoAcademica_estado');
+                if (!salvo) return false;
+                const estado = JSON.parse(salvo);
+                if (estado.dbGrupos) dbGrupos = estado.dbGrupos;
+                if (estado.criteriosConfig) criteriosConfig = estado.criteriosConfig;
+                if (estado.dbAvaliacoes) dbAvaliacoes = estado.dbAvaliacoes;
+                return true;
+            } catch (e) { console.error('Falha ao carregar estado local:', e); return false; }
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
+            carregarEstado();
             renderListaGrupos();
             verificarModoAcesso();
         });
+
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function decodificarParametroSeguro(param) {
+            if(!param) return "-";
+            try { return decodeURIComponent(param.replace(/\+/g, " ")); } catch(e) { try { return unescape(param); } catch(err) { return param; } }
+        }
 
         function verificarModoAcesso() {
             const params = new URLSearchParams(window.location.search);
@@ -327,11 +372,21 @@
                 document.getElementById('menu-navegacao').classList.add('d-none');
                 switchView('aluno');
                 document.getElementById('aluno-grupo-id').value = params.get('gId');
-                document.getElementById('aluno-grupo-nome').value = `${params.get('gNome')} [${params.get('gTema')}]`;
-                document.getElementById('aluno-grupo-integrantes').innerText = params.get('gMembros') ? decodeURIComponent(params.get('gMembros')) : "-";
+                
+                const nomeGrupo = decodificarParametroSeguro(params.get('gNome'));
+                const temaGrupo = decodificarParametroSeguro(params.get('gTema'));
+                const membrosGrupo = decodificarParametroSeguro(params.get('gMembros'));
+
+                document.getElementById('aluno-grupo-nome').value = `${nomeGrupo} [${temaGrupo}]`;
+                document.getElementById('aluno-grupo-integrantes').innerText = membrosGrupo;
+
+                if(params.has('gCrits')) {
+                    try { criteriosConfig = JSON.parse(decodificarParametroSeguro(params.get('gCrits'))); } catch(e){ console.error(e); }
+                }
                 renderCriteriosForm();
             } else {
                 switchView('professor');
+                atualizarDropdownFiltro();
                 renderDashboard();
             }
         }
@@ -348,12 +403,11 @@
             reader.onload = (evt) => {
                 const data = new Uint8Array(evt.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
+                
                 const nomeAbaGrupos = workbook.SheetNames.find(n => n.toLowerCase().trim() === 'grupos' || n.toLowerCase().trim() === 'grupo');
                 if (!nomeAbaGrupos) { alert('Erro: O arquivo precisa conter a aba "Grupos".'); return; }
-                
                 const wsGrupos = workbook.Sheets[nomeAbaGrupos];
                 const jsonGrupos = XLSX.utils.sheet_to_json(wsGrupos);
-                
                 dbGrupos = jsonGrupos.map((item, index) => {
                     const findKey = (arrNames) => {
                         const found = Object.keys(item).find(k => arrNames.includes(k.toLowerCase().trim()));
@@ -366,36 +420,63 @@
                         integrantes: findKey(['alunos', 'aluno', 'integrantes', 'membros']) || 'Não informados'
                     };
                 });
+
+                const nomeAbaCrit = workbook.SheetNames.find(n => n.toLowerCase().trim() === 'critérios' || n.toLowerCase().trim() === 'criterios');
+                if (nomeAbaCrit) {
+                    const jsonCrit = XLSX.utils.sheet_to_json(workbook.Sheets[nomeAbaCrit]);
+                    if (jsonCrit.length > 0) {
+                        criteriosConfig = jsonCrit.map((item, idx) => ({
+                            id: `c_${idx + 1}`,
+                            dim: item.Dimensão || item.Dimensao || 'Geral',
+                            label: item.Criterio || item.Critério || `Critério ${idx + 1}`,
+                            desc: item.Descrição || item.Descricao || 'Avalie o desempenho.',
+                            peso: parseFloat(item.Peso) || 1
+                        }));
+                    }
+                }
                 
-                localStorage.setItem('acad_grupos', JSON.stringify(dbGrupos));
+                dbAvaliacoes = []; // Reseta avaliações antigas ao subir nova planilha
+                salvarEstado();
                 renderListaGrupos();
-                alert(`Configuração carregada!\n- ${dbGrupos.length} Grupos importados.`);
+                atualizarDropdownFiltro();
+                renderDashboard();
+                alert(`Sucesso!\n- ${dbGrupos.length} Grupos importados.\n- ${criteriosConfig.length} Critérios carregados.`);
             };
             reader.readAsArrayBuffer(file);
         });
 
         function renderListaGrupos() {
             const container = document.getElementById('lista-grupos');
-            if (dbGrupos.length === 0) { container.innerHTML = '<div class="col-12 text-center text-muted py-4">Aguardando importação da planilha...</div>'; return; }
+            if (dbGrupos.length === 0) { container.innerHTML = '<div class="col-12 text-center text-muted py-4"><i class="fa-solid fa-folder-open me-2"></i>Aguardando importação da planilha mestre...</div>'; return; }
             container.innerHTML = dbGrupos.map(g => {
                 const isAtivo = grupoAtivo && grupoAtivo.id === g.id;
                 return `
                     <div class="col">
                         <div class="card h-100 card-group shadow-sm ${isAtivo ? 'active-group-card' : ''}">
-                            <div class="card-body d-flex flex-column justify-content-between">
-                                <div>
-                                    <h5 class="card-title text-primary fw-bold">${g.nome}</h5>
-                                    <h6 class="card-subtitle mb-2 text-muted small"><strong>Tema:</strong> ${g.tema}</h6>
-                                    <p class="card-text text-secondary small"><strong>Alunos:</strong> ${g.integrantes}</p>
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2 gap-2">
+                                    <h5 class="card-title text-primary fw-bold mb-0">${escapeHtml(g.nome)}</h5>
+                                    <div>
+                                        ${isAtivo 
+                                            ? `<button class="btn btn-warning btn-xs disabled fw-bold" style="font-size:0.75rem; padding:2px 8px;">Ativo</button>` 
+                                            : `<button class="btn btn-outline-primary btn-xs fw-bold" onclick="iniciarApresentacao(${g.id})" style="font-size:0.75rem; padding:2px 12px;"><i class="fa-solid fa-play me-1"></i>Iniciar</button>`
+                                        }
+                                    </div>
                                 </div>
-                                <div class="mt-3">
-                                    ${isAtivo ? `<button class="btn btn-warning btn-sm w-100 disabled">Apresentando...</button>` : `<button class="btn btn-outline-primary btn-sm w-100" onclick="iniciarApresentacao(${g.id})">Iniciar</button>`}
-                                </div>
+                                <h6 class="card-subtitle mb-2 text-muted small"><strong>Tema:</strong> ${escapeHtml(g.tema)}</h6>
+                                <p class="card-text text-secondary small mb-0"><strong>Alunos:</strong> ${escapeHtml(g.integrantes)}</p>
                             </div>
                         </div>
                     </div>
                 `;
             }).join('');
+        }
+
+        function atualizarDropdownFiltro() {
+            const select = document.getElementById('filtro-trabalho-grafico');
+            if(!select) return;
+            select.innerHTML = '<option value="GERAL">Média da Turma</option>';
+            dbGrupos.forEach(g => { select.innerHTML += `<option value="${g.nome}">${g.nome}</option>`; });
         }
 
         function iniciarApresentacao(id) {
@@ -414,12 +495,12 @@
             document.getElementById('sessao-ativa').classList.remove('d-none');
             document.getElementById('ativo-nome').innerText = grupoAtivo.nome;
             document.getElementById('ativo-tema').innerText = grupoAtivo.tema;
-            document.getElementById('ativo-integrantes').innerHTML = `<strong>Alunos:</strong> ${grupoAtivo.integrantes}`;
+            document.getElementById('ativo-integrantes').innerHTML = `<strong>Alunos:</strong> ${escapeHtml(grupoAtivo.integrantes)}`;
 
             const qrContainer = document.getElementById('qrcode');
             qrContainer.innerHTML = "";
             const urlBase = window.location.href.split('?')[0];
-            const urlFinal = `${urlBase}?gId=${grupoAtivo.id}&gNome=${encodeURIComponent(grupoAtivo.nome)}&gTema=${encodeURIComponent(grupoAtivo.tema)}&gMembros=${encodeURIComponent(grupoAtivo.integrantes)}`;
+            const urlFinal = `${urlBase}?gId=${grupoAtivo.id}&gNome=${encodeURIComponent(grupoAtivo.nome)}&gTema=${encodeURIComponent(grupoAtivo.tema)}&gMembros=${encodeURIComponent(grupoAtivo.integrantes)}&gCrits=${encodeURIComponent(JSON.stringify(criteriosConfig))}`;
             
             new QRCode(qrContainer, { text: urlFinal, width: 130, height: 130, colorDark : "#2c3e50", colorLight : "#ffffff" });
             qrContainer.setAttribute('data-link', urlFinal);
@@ -441,7 +522,6 @@
         function retomarTimer() { isPausado = false; document.getElementById('btn-retomar').classList.add('d-none'); document.getElementById('btn-pausar').classList.remove('d-none'); }
         function finalizarApresentacao() { clearInterval(timerInterval); grupoAtivo = null; document.getElementById('sessao-ativa').classList.add('d-none'); document.getElementById('sessao-vazia').classList.remove('d-none'); renderListaGrupos(); }
 
-        // MÓDULO CORRIGIDO: Conversão limpa de caracteres especiais e acentos sem travar
         function processarTokensProfessor() {
             const rawText = document.getElementById('votos-brutos').value.trim();
             if(!rawText) return;
@@ -451,15 +531,8 @@
             linhas.forEach(l => {
                 if(!l.startsWith("ACAD-VOTE|")) return;
                 try {
-                    // Decodificação universal segura para navegadores (suporta emojis, acentos e caracteres especiais)
-                    const base64Part = l.split('|')[1];
-                    const binString = atob(base64Part);
-                    const bytes = new Uint8Array(binString.length);
-                    for (let i = 0; i < binString.length; i++) {
-                        bytes[i] = binString.charCodeAt(i);
-                    }
-                    const decoder = new TextDecoder('utf-8');
-                    const json = JSON.parse(decoder.decode(bytes));
+                    const dadosLimpos = l.replace("ACAD-VOTE|", "").trim();
+                    const json = JSON.parse(dadosLimpos);
                     
                     if(!dbAvaliacoes.some(x => x.ra === json.ra && x.grupoId === json.grupoId)) { 
                         dbAvaliacoes.push(json); 
@@ -467,35 +540,39 @@
                     } else { 
                         dup++; 
                     }
-                } catch(e) { 
-                    console.error("Erro no processamento:", e); 
-                }
+                } catch(e) { console.error("Erro no processamento:", e); }
             });
             document.getElementById('votos-brutos').value = "";
+            salvarEstado();
             renderDashboard();
             alert(`Processamento Concluído! ${ins} válidos | ${dup} duplicados.`);
         }
 
-        // --- Aluno ---
         function renderCriteriosForm() {
-            document.getElementById('container-criterios').innerHTML = criteriosConfig.map(c => `
-                <div class="mb-3 p-2 bg-white rounded border-start border-3 border-primary shadow-sm">
-                    <div class="d-flex justify-content-between align-items-center flex-wrap">
-                        <div style="max-width: 65%;">
-                            <span class="badge bg-secondary mb-1" style="font-size:0.65rem;">${c.dim} (Peso Max: ${c.peso})</span>
-                            <label class="form-label mb-0 d-block fw-bold small text-dark">${c.label}</label>
-                            <span class="text-muted d-block" style="font-size:0.75rem; line-height: 1.1;">${c.desc}</span>
-                        </div>
-                        <div class="star-rating">
-                            <input type="radio" id="star-${c.id}-5" name="crit-${c.id}" value="5" required/><label for="star-${c.id}-5" class="fa-solid fa-star"></label>
-                            <input type="radio" id="star-${c.id}-4" name="crit-${c.id}" value="4" /><label for="star-${c.id}-4" class="fa-solid fa-star"></label>
-                            <input type="radio" id="star-${c.id}-3" name="crit-${c.id}" value="3" /><label for="star-${c.id}-3" class="fa-solid fa-star"></label>
-                            <input type="radio" id="star-${c.id}-2" name="crit-${c.id}" value="2" /><label for="star-${c.id}-2" class="fa-solid fa-star"></label>
-                            <input type="radio" id="star-${c.id}-1" name="crit-${c.id}" value="1" /><label for="star-${c.id}-1" class="fa-solid fa-star"></label>
+            document.getElementById('container-criterios').innerHTML = criteriosConfig.map((c, index) => {
+                const numeroFormatado = String(index + 1).padStart(2, '0');
+                return `
+                    <div class="mb-3 p-2 bg-white rounded border-start border-3 border-primary shadow-sm">
+                        <div class="d-flex justify-content-between align-items-center flex-wrap">
+                            <div style="max-width: 65%;">
+                                <span class="badge bg-secondary mb-1" style="font-size:0.65rem;">${escapeHtml(c.dim)} (Peso Max: ${c.peso})</span>
+                                <div class="d-flex align-items-start">
+                                    <span class="crit-num me-1">${numeroFormatado}.</span>
+                                    <label class="form-label mb-0 fw-bold small text-dark d-inline-block">${escapeHtml(c.label)}</label>
+                                </div>
+                                <span class="text-muted d-block ps-4" style="font-size:0.75rem; line-height: 1.1;">${escapeHtml(c.desc)}</span>
+                            </div>
+                            <div class="star-rating">
+                                <input type="radio" id="star-${c.id}-5" name="crit-${c.id}" value="5" required/><label for="star-${c.id}-5" class="fa-solid fa-star"></label>
+                                <input type="radio" id="star-${c.id}-4" name="crit-${c.id}" value="4" /><label for="star-${c.id}-4" class="fa-solid fa-star"></label>
+                                <input type="radio" id="star-${c.id}-3" name="crit-${c.id}" value="3" /><label for="star-${c.id}-3" class="fa-solid fa-star"></label>
+                                <input type="radio" id="star-${c.id}-2" name="crit-${c.id}" value="2" /><label for="star-${c.id}-2" class="fa-solid fa-star"></label>
+                                <input type="radio" id="star-${c.id}-1" name="crit-${c.id}" value="1" /><label for="star-${c.id}-1" class="fa-solid fa-star"></label>
+                            </div>
                         </div>
                     </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
         function gerarTokenAluno(e) {
@@ -510,7 +587,7 @@
             const notasVotadasPorId = {};
             criteriosConfig.forEach(c => {
                 const el = document.querySelector(`input[name="crit-${c.id}"]:checked`);
-                notasVotadasPorId[c.id] = el ? parseInt(el.value) : 1; // Fallback para 1 se der algum erro de seleção
+                notasVotadasPorId[c.id] = el ? parseInt(el.value) : 1;
             });
 
             const aval = {
@@ -522,17 +599,8 @@
                 pontosFortes: document.getElementById('p-fortes').value.trim(),
                 pontosMelhorias: document.getElementById('p-melhorias').value.trim()
             };
-
-            // Codificação UTF-8 robusta para Base64 nativo
-            const encoder = new TextEncoder();
-            const u8array = encoder.encode(JSON.stringify(aval));
-            let binString = "";
-            for (let i = 0; i < u8array.length; i++) {
-                binString += String.fromCharCode(u8array[i]);
-            }
-            const tokenInjetavel = "ACAD-VOTE|" + btoa(binString);
             
-            document.getElementById('token-gerado').value = tokenInjetavel;
+            document.getElementById('token-gerado').value = "ACAD-VOTE|" + JSON.stringify(aval);
             document.getElementById('form-avaliacao').classList.add('d-none');
             document.getElementById('aluno-sucesso').classList.remove('d-none');
         }
@@ -542,9 +610,9 @@
 
         // --- Dashboard ---
         function renderDashboard() {
-            const total = dbAvaliacoes.length;
-            document.getElementById('dash-total-aval').innerText = total;
-            if (total === 0) {
+            const totalTotal = dbAvaliacoes.length;
+            if (totalTotal === 0) {
+                document.getElementById('dash-total-aval').innerText = "0";
                 document.getElementById('dash-media-geral').innerText = "0.0";
                 document.getElementById('dash-grupo-top').innerText = "-";
                 document.getElementById('dash-comentarios').innerHTML = '<p class="text-muted small">Nenhum feedback em texto registrado.</p>';
@@ -552,17 +620,26 @@
                 return;
             }
 
+            const filtroFiltro = document.getElementById('filtro-trabalho-grafico').value;
+            const amostrasDashboard = filtroFiltro === 'GERAL' ? dbAvaliacoes : dbAvaliacoes.filter(x => x.grupo === filtroFiltro);
+            const total = amostrasDashboard.length;
+
+            document.getElementById('dash-total-aval').innerText = total;
+            if (total === 0) { if(chartInstance) chartInstance.destroy(); return; }
+
+            const labels = criteriosConfig.map(c => c.label);
             let somatorioNotasFinaisEscolares = 0;
+            
             const mediasPontosPorCrit = criteriosConfig.map(c => {
                 let s = 0;
-                dbAvaliacoes.forEach(a => {
+                amostrasDashboard.forEach(a => {
                     const estrela = a.votosId && a.votosId[c.id] !== undefined ? a.votosId[c.id] : 1;
                     s += (estrela / 5) * c.peso;
                 });
                 return (s / total);
             });
 
-            dbAvaliacoes.forEach(a => {
+            amostrasDashboard.forEach(a => {
                 let pontosConquistados = 0;
                 let pontosMaximosPossiveis = 0;
                 criteriosConfig.forEach(c => {
@@ -596,22 +673,22 @@
             chartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: criteriosConfig.map(c => c.label.substring(0,12) + '...'),
-                    datasets: [{ label: 'Média de Pontos por Critério', data: mediasPontosPorCrit.map(m => m.toFixed(1)), backgroundColor: '#18bc9c' }]
+                    labels: labels.map(l => l.substring(0,12) + '...'),
+                    datasets: [{ label: filtroFiltro === 'GERAL' ? 'Média Geral da Turma' : `Pontuação ${filtroFiltro}`, data: mediasPontosPorCrit.map(m => m.toFixed(1)), backgroundColor: '#18bc9c' }]
                 },
                 options: { responsive: true, maintainAspectRatio: false }
             });
 
-            document.getElementById('dash-comentarios').innerHTML = dbAvaliacoes.slice().reverse().map(x => `
+            document.getElementById('dash-comentarios').innerHTML = amostrasDashboard.slice().reverse().map(x => `
                 <div class="p-2 border-bottom small card mb-1 bg-white shadow-sm">
-                    <strong class="text-primary">${x.grupo} <span class="text-muted" style="font-size:0.75rem;">(Alunos: ${x.membrosGrupo || 'Não informados'})</span></strong>
-                    <div class="text-success text-xs mt-1"><strong>+</strong> ${x.pontosFortes || '-'}</div>
-                    <div class="text-danger text-xs"><strong>-</strong> ${x.pontosMelhorias || '-'}</div>
+                    <strong class="text-primary">${escapeHtml(x.grupo)} <span class="text-muted" style="font-size:0.75rem;">(Alunos: ${escapeHtml(x.membrosGrupo || 'Não informados')})</span></strong>
+                    <div class="text-success text-xs mt-1"><strong>+</strong> ${escapeHtml(x.pontosFortes || '-')}</div>
+                    <div class="text-danger text-xs"><strong>-</strong> ${escapeHtml(x.pontosMelhorias || '-')}</div>
                 </div>
             `).join('');
         }
 
-        // --- Exportador Excel ---
+        // --- EXPORTADOR DINÂMICO CORRIGIDO (Altera as colunas conforme os novos critérios da planilha) ---
         function exportarResultadosXLSX() {
             if (dbAvaliacoes.length === 0) return;
             const wb = XLSX.utils.book_new();
@@ -624,13 +701,12 @@
                     const estrelas = x.votosId && x.votosId[c.id] !== undefined ? x.votosId[c.id] : 1;
                     const valorComPesoCalculado = (estrelas / 5) * c.peso;
                     linha[c.label] = parseFloat(valorComPesoCalculado.toFixed(2));
-                    
                     totalConq += valorComPesoCalculado;
                     totalMax += c.peso;
                 });
                 linha["Nota Final Ponderada (0-10)"] = parseFloat(((totalConq / totalMax) * 10).toFixed(2));
                 linha["Pontos Fortes"] = x.pontosFortes;
-                linha["Pontos de Melhorias"] = x.pontosMelhorias;
+                linha["Nota de Melhorias"] = x.pontosMelhorias;
                 return linha;
             });
             XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dadosAba1), "Avaliações");
@@ -667,7 +743,7 @@
             if (dbAvaliacoes.length === 0) { alert("Sem comentários para exportar."); return; }
             const wb = XLSX.utils.book_new();
             const dadosComentarios = dbAvaliacoes.map(x => ({
-                "Grupo Evaluado": x.grupo,
+                "Grupo Avaliado": x.grupo,
                 "Alunos Apresentadores": x.membrosGrupo || "Não informados",
                 "Tema": x.tema,
                 "Avaliador (RA)": x.ra,
