@@ -192,7 +192,7 @@
                 <div class="row g-4">
                     <div class="col-md-6">
                         <div class="card shadow-sm p-3 h-100">
-                            <h5>Média de Estrelas por Critério</h5>
+                            <h5>Média Ponderada por Critério (Pontos Reais)</h5>
                             <div style="position: relative; height:250px; width:100%">
                                 <canvas id="chartCriterios"></canvas>
                             </div>
@@ -200,7 +200,12 @@
                     </div>
                     <div class="col-md-6">
                         <div class="card shadow-sm p-3 h-100">
-                            <h5>Feedbacks Construtivos (Comentários)</h5>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h5 class="mb-0">Feedbacks Construtivos (Comentários)</h5>
+                                <button class="btn btn-outline-success btn-xs" onclick="exportarApenasComentariosXLSX()" style="font-size: 0.75rem; padding: 2px 6px;">
+                                    <i class="fa-solid fa-file-excel me-1"></i>Exportar Comentários
+                                </button>
+                            </div>
                             <div id="dash-comentarios" class="overflow-y-auto mt-2" style="max-height: 240px;">
                                 <p class="text-muted small">Nenhum feedback em texto registrado.</p>
                             </div>
@@ -216,7 +221,7 @@
                 <div class="col-md-6">
                     <div class="card shadow-sm shadow">
                         <div class="card-header bg-dark text-white text-center py-3">
-                            <h5 class="mb-0"><i class="fa-solid fa-pen-to-square me-2"></i>Ficha de Avaliação por Pares</h5>
+                            <h5 class="mb-0"><i class="fa-solid fa-pen-to-square me-2"></i>Ficha de Evaluation por Pares</h5>
                         </div>
                         <div class="card-body p-4">
                             <div id="aluno-sucesso" class="d-none text-center py-4">
@@ -294,7 +299,6 @@
         let isPausado = false;
         let chartInstance = null;
 
-        // MATRIZ DEFINITIVA COMPLETA COM SEUS PESOS DA IMAGEM
         const criteriosConfig = [
             { id: 'c_1', dim: 'Equipe', label: 'Trabalho em Equipe', desc: 'Integração, sinergia e cooperação mútua entre os membros.', peso: 8 },
             { id: 'c_2', dim: 'Estrutura', label: 'Organização e Qualidade dos Slides', desc: 'Estrutura lógica, design limpo, legibilidade e suporte visual.', peso: 8 },
@@ -344,18 +348,30 @@
             reader.onload = (evt) => {
                 const data = new Uint8Array(evt.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
-                if (!workbook.SheetNames.includes('Grupos')) { alert('Erro: O arquivo precisa conter a aba "Grupos".'); return; }
-                const wsGrupos = workbook.Sheets['Grupos'];
+                
+                const nomeAbaGrupos = workbook.SheetNames.find(n => n.toLowerCase().trim() === 'grupos' || n.toLowerCase().trim() === 'grupo');
+                if (!nomeAbaGrupos) { alert('Erro: O arquivo precisa conter a aba "Grupos".'); return; }
+                
+                const wsGrupos = workbook.Sheets[nomeAbaGrupos];
                 const jsonGrupos = XLSX.utils.sheet_to_json(wsGrupos);
-                dbGrupos = jsonGrupos.map((item, index) => ({
-                    id: index + 1,
-                    nome: item.Grupo || `Grupo ${index + 1}`,
-                    tema: item.Tema || 'Tema não informado',
-                    integrantes: item.Alunos || item.Aluno || item.Integrantes || 'Não informados'
-                }));
+                
+                dbGrupos = jsonGrupos.map((item, index) => {
+                    const findKey = (arrNames) => {
+                        const found = Object.keys(item).find(k => arrNames.includes(k.toLowerCase().trim()));
+                        return found ? item[found] : null;
+                    };
+
+                    return {
+                        id: index + 1,
+                        nome: findKey(['grupo', 'gId']) || `Grupo ${index + 1}`,
+                        tema: findKey(['tema', 'assunto', 'projeto']) || 'Tema não informado',
+                        integrantes: findKey(['alunos', 'aluno', 'integrantes', 'membros']) || 'Não informados'
+                    };
+                });
+                
                 localStorage.setItem('acad_grupos', JSON.stringify(dbGrupos));
                 renderListaGrupos();
-                alert(`Configuração carregada!\n- ${dbGrupos.length} Grupos carregados.`);
+                alert(`Configuração carregada!\n- ${dbGrupos.length} Grupos importados.`);
             };
             reader.readAsArrayBuffer(file);
         });
@@ -405,8 +421,6 @@
             const qrContainer = document.getElementById('qrcode');
             qrContainer.innerHTML = "";
             const urlBase = window.location.href.split('?')[0];
-            
-            // LINK SUPER LEVE: Sem carregar a planilha inteira na URL para não quebrar o QR Code!
             const urlFinal = `${urlBase}?gId=${grupoAtivo.id}&gNome=${encodeURIComponent(grupoAtivo.nome)}&gTema=${encodeURIComponent(grupoAtivo.tema)}&gMembros=${encodeURIComponent(grupoAtivo.integrantes)}`;
             
             new QRCode(qrContainer, { text: urlFinal, width: 130, height: 130, colorDark : "#2c3e50", colorLight : "#ffffff" });
@@ -452,12 +466,12 @@
                 <div class="mb-3 p-2 bg-white rounded border-start border-3 border-primary shadow-sm">
                     <div class="d-flex justify-content-between align-items-center flex-wrap">
                         <div style="max-width: 65%;">
-                            <span class="badge bg-secondary mb-1" style="font-size:0.65rem;">${c.dim} (Peso ${c.peso})</span>
+                            <span class="badge bg-secondary mb-1" style="font-size:0.65rem;">${c.dim} (Peso Max: ${c.peso})</span>
                             <label class="form-label mb-0 d-block fw-bold small text-dark">${c.label}</label>
                             <span class="text-muted d-block" style="font-size:0.75rem; line-height: 1.1;">${c.desc}</span>
                         </div>
                         <div class="star-rating">
-                            <input type="radio" id="star-${c.id}-5" name="crit-${c.id}" value="5" required/><label false for="star-${c.id}-5" class="fa-solid fa-star"></label>
+                            <input type="radio" id="star-${c.id}-5" name="crit-${c.id}" value="5" required/><label for="star-${c.id}-5" class="fa-solid fa-star"></label>
                             <input type="radio" id="star-${c.id}-4" name="crit-${c.id}" value="4" /><label for="star-${c.id}-4" class="fa-solid fa-star"></label>
                             <input type="radio" id="star-${c.id}-3" name="crit-${c.id}" value="3" /><label for="star-${c.id}-3" class="fa-solid fa-star"></label>
                             <input type="radio" id="star-${c.id}-2" name="crit-${c.id}" value="2" /><label for="star-${c.id}-2" class="fa-solid fa-star"></label>
@@ -472,6 +486,7 @@
             e.preventDefault();
             const gId = document.getElementById('aluno-grupo-id').value;
             const fullTexto = document.getElementById('aluno-grupo-nome').value;
+            const membrosTexto = document.getElementById('aluno-grupo-integrantes').innerText;
             const email = document.getElementById('aluno-email').value.trim().toLowerCase();
             const ra = document.getElementById('aluno-ra').value.trim();
             const nome = document.getElementById('aluno-nome').value.trim();
@@ -479,6 +494,7 @@
             const estrelasDadas = {};
             criteriosConfig.forEach(c => {
                 const el = document.querySelector(`input[name="crit-${c.id}"]:checked`);
+                // Salva a quantidade de estrelas limpa (1-5) enviada pelo aluno
                 estrelasDadas[c.label] = el ? parseInt(el.value) : 5;
             });
 
@@ -486,6 +502,7 @@
                 ra: ra, aluno: nome, email: email, grupoId: gId,
                 grupo: fullTexto.split(' [')[0],
                 tema: fullTexto.includes('[') ? fullTexto.split('[')[1].replace(']', '') : 'Não informado',
+                membrosGrupo: membrosTexto,
                 estrelas: estrelasDadas,
                 pontosFortes: document.getElementById('p-fortes').value.trim(),
                 pontosMelhorias: document.getElementById('p-melhorias').value.trim()
@@ -506,6 +523,7 @@
             if (total === 0) {
                 document.getElementById('dash-media-geral').innerText = "0.0";
                 document.getElementById('dash-grupo-top').innerText = "-";
+                document.getElementById('dash-comentarios').innerHTML = '<p class="text-muted small">Nenhum feedback em texto registrado.</p>';
                 if(chartInstance) chartInstance.destroy();
                 return;
             }
@@ -513,9 +531,13 @@
             const labels = criteriosConfig.map(c => c.label);
             let somatorioNotasFinaisEscolares = 0;
             
-            const mediasEstrelasPorCrit = labels.map(label => {
+            const mediasPontosPorCrit = labels.map(label => {
                 let s = 0;
-                dbAvaliacoes.forEach(a => s += (a.estrelas[label] || 0));
+                const critInfo = criteriosConfig.find(c => c.label === label);
+                dbAvaliacoes.forEach(a => {
+                    const estrela = a.estrelas[label] !== undefined ? a.estrelas[label] : 5;
+                    s += (estrela / 5) * critInfo.peso; // Exibe a média em pontos reais já calculados com o peso!
+                });
                 return (s / total);
             });
 
@@ -523,7 +545,7 @@
                 let pontosConquistados = 0;
                 let pontosMaximosPossiveis = 0;
                 criteriosConfig.forEach(c => {
-                    const estrelas = a.estrelas[c.label] || 5;
+                    const estrelas = a.estrelas[c.label] !== undefined ? a.estrelas[c.label] : 5;
                     pontosConquistados += (estrelas / 5) * c.peso;
                     pontosMaximosPossiveis += c.peso;
                 });
@@ -536,7 +558,8 @@
             dbAvaliacoes.forEach(a => {
                 if(!ranking[a.grupo]) ranking[a.grupo] = { ptConq: 0, ptMax: 0 };
                 criteriosConfig.forEach(c => {
-                    ranking[a.grupo].ptConq += ((a.estrelas[c.label] || 5) / 5) * c.peso;
+                    const estrela = a.estrelas[c.label] !== undefined ? a.estrelas[c.label] : 5;
+                    ranking[a.grupo].ptConq += (estrela / 5) * c.peso;
                     ranking[a.grupo].ptMax += c.peso;
                 });
             });
@@ -552,22 +575,23 @@
             chartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: labels.map(l => l.substring(0,15) + '...'), // Encurta labels no gráfico
-                    datasets: [{ label: 'Média de Estrelas (1-5)', data: mediasEstrelasPorCrit.map(m => m.toFixed(1)), backgroundColor: '#18bc9c' }]
+                    labels: labels.map(l => l.substring(0,12) + '...'),
+                    datasets: [{ label: 'Média de Pontos por Critério', data: mediasPontosPorCrit.map(m => m.toFixed(1)), backgroundColor: '#18bc9c' }]
                 },
-                options: { scales: { y: { min: 0, max: 5 } }, responsive: true, maintainAspectRatio: false }
+                options: { responsive: true, maintainAspectRatio: false }
             });
 
+            // Imprime os Feedbacks juntando o Nome dos Alunos Apresentadores (Correção Imagem)
             document.getElementById('dash-comentarios').innerHTML = dbAvaliacoes.slice().reverse().map(x => `
-                <div class="p-2 border-bottom small card mb-1 bg-white">
-                    <strong class="text-primary">${x.grupo}</strong>
-                    <div class="text-success text-xs"><strong>+</strong> ${x.pontosFortes || '-'}</div>
+                <div class="p-2 border-bottom small card mb-1 bg-white shadow-sm">
+                    <strong class="text-primary">${x.grupo} <span class="text-muted" style="font-size:0.75rem;">(Alunos: ${x.membrosGrupo || 'Não informados'})</span></strong>
+                    <div class="text-success text-xs mt-1"><strong>+</strong> ${x.pontosFortes || '-'}</div>
                     <div class="text-danger text-xs"><strong>-</strong> ${x.pontosMelhorias || '-'}</div>
                 </div>
             `).join('');
         }
 
-        // --- Exportador ---
+        // --- Exportador Geral Conectando com Pesos Corretos no Excel ---
         function exportarResultadosXLSX() {
             if (dbAvaliacoes.length === 0) return;
             const wb = XLSX.utils.book_new();
@@ -575,13 +599,16 @@
             const dadosAba1 = dbAvaliacoes.map(x => {
                 const linha = { "RA": x.ra, "Aluno": x.aluno, "E-mail": x.email, "Grupo": x.grupo, "Tema": x.tema };
                 let totalConq = 0, totalMax = 0;
+                
                 criteriosConfig.forEach(c => {
-                    const estrelas = x.estrelas[c.label] || 0;
-                    linha[c.label] = estrelas;
-                    totalConq += (estrelas / 5) * c.peso;
+                    const estrelas = x.estrelas[c.label] !== undefined ? x.estrelas[c.label] : 5;
+                    const valorComPesoCalculado = (estrelas / 5) * c.peso; // RESOLVE O BUG DOS ZERADOS: Aplica o valor real calculado direto na célula!
+                    linha[c.label] = parseFloat(valorComPesoCalculado.toFixed(2));
+                    
+                    totalConq += valorComPesoCalculado;
                     totalMax += c.peso;
                 });
-                linha["Nota Final Ponderada (0-10)"] = ((totalConq / totalMax) * 10).toFixed(2);
+                linha["Nota Final Ponderada (0-10)"] = parseFloat(((totalConq / totalMax) * 10).toFixed(2));
                 linha["Pontos Fortes"] = x.pontosFortes;
                 linha["Pontos de Melhorias"] = x.pontosMelhorias;
                 return linha;
@@ -595,22 +622,44 @@
                 const n = amostras.length;
                 const linhaResumo = { "Grupo": g, "Total de Avaliadores": n };
                 
-                let somaMediasEscolares = 0;
+                let sMediasEscolares = 0;
                 criteriosConfig.forEach(c => {
-                    let totalEstrelas = 0;
-                    amostras.forEach(a => totalEstrelas += (a.estrelas[c.label] || 0));
-                    let mediaEstrelas = totalEstrelas / n;
-                    linhaResumo[`Média ${c.label} (Estrelas)`] = mediaEstrelas.toFixed(2);
-                    somaMediasEscolares += (mediaEstrelas / 5) * c.peso;
+                    let totalPontosDoCriterio = 0;
+                    amostras.forEach(a => {
+                        const estrela = a.estrelas[c.label] !== undefined ? a.estrelas[c.label] : 5;
+                        totalPontosDoCriterio += (estrela / 5) * c.peso;
+                    });
+                    let mediaPonderadaDoCrit = totalPontosDoCriterio / n;
+                    linhaResumo[`Média ${c.label} (Pontos)`] = parseFloat(mediaPonderadaDoCrit.toFixed(2));
+                    sMediasEscolares += mediaPonderadaDoCrit;
                 });
 
-                let totalPesos =| criteriosConfig.reduce((acc, curr) => acc + curr.peso, 0);
-                linhaResumo["Nota Final Ponderada (0-10)"] = ((somaMediasEscolares / totalPesos) * 10).toFixed(2);
+                let totalPesos = criteriosConfig.reduce((acc, curr) => acc + curr.peso, 0);
+                linhaResumo["Nota Final Ponderada (0-10)"] = parseFloat(((sMediasEscolares / totalPesos) * 10).toFixed(2));
                 dadosAba2.push(linhaResumo);
             });
             XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dadosAba2), "Resumo");
 
             XLSX.writeFile(wb, `Avaliacao_Mestre_Consolidado.xlsx`);
+        }
+
+        // --- Botão para Exportar Apenas Comentários (Nova Funcionalidade da Imagem) ---
+        function exportarApenasComentariosXLSX() {
+            if (dbAvaliacoes.length === 0) { alert("Sem comentários para exportar."); return; }
+            const wb = XLSX.utils.book_new();
+            
+            const dadosComentarios = dbAvaliacoes.map(x => ({
+                "Grupo Evaluado": x.grupo,
+                "Alunos Apresentadores": x.membrosGrupo || "Não informados",
+                "Tema": x.tema,
+                "Avaliador (RA)": x.ra,
+                "Nome do Avaliador": x.aluno,
+                "Pontos Fortes": x.pontosFortes || "-",
+                "Pontos de Melhoria": x.pontosMelhorias || "-"
+            }));
+
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dadosComentarios), "Feedbacks Textuais");
+            XLSX.writeFile(wb, `Feedbacks_Comentarios_Turma.xlsx`);
         }
 
         function copiarLinkAluno() {
